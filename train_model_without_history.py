@@ -34,14 +34,21 @@ df = pd.read_csv("loan_data.csv")
 # 2. Remove rows without a target
 # --------------------------------------------------
 
-df = df.dropna(subset=["Current_loan_status"])
+df = df.dropna(subset=[
+    "Current_loan_status"
+])
 
 
 # --------------------------------------------------
 # 3. Remove ID
 # --------------------------------------------------
 
-df = df.drop(columns=["customer_id"])
+df = df.drop(
+    columns=[
+    "customer_id" ,
+    "historical_default"
+    ]
+)
 
 
 # --------------------------------------------------
@@ -107,7 +114,6 @@ categorical_features = [
     "home_ownership",
     "loan_intent",
     "loan_grade",
-    "historical_default"
 ]
 
 

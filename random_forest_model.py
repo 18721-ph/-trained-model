@@ -1,16 +1,11 @@
 import pandas as pd
 
 from sklearn.model_selection import train_test_split
-
 from sklearn.compose import ColumnTransformer
-
 from sklearn.pipeline import Pipeline
-
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.impute import SimpleImputer
-
-from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 
 from sklearn.metrics import (
     accuracy_score,
@@ -34,14 +29,21 @@ df = pd.read_csv("loan_data.csv")
 # 2. Remove rows without a target
 # --------------------------------------------------
 
-df = df.dropna(subset=["Current_loan_status"])
+df = df.dropna(
+    subset=["Current_loan_status"]
+)
 
 
 # --------------------------------------------------
-# 3. Remove ID
+# 3. Remove ID and suspicious history feature
 # --------------------------------------------------
 
-df = df.drop(columns=["customer_id"])
+df = df.drop(
+    columns=[
+        "customer_id",
+        "historical_default"
+    ]
+)
 
 
 # --------------------------------------------------
@@ -67,10 +69,12 @@ df["loan_amnt"] = pd.to_numeric(
 
 
 # --------------------------------------------------
-# 5. Separate features and target
+# 5. Features and target
 # --------------------------------------------------
 
-X = df.drop(columns=["Current_loan_status"])
+X = df.drop(
+    columns=["Current_loan_status"]
+)
 
 y = df["Current_loan_status"]
 
@@ -88,8 +92,21 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 
+print("Rows before split:")
+print(len(df))
+
+print("\nTraining rows:")
+print(len(X_train))
+
+print("\nTesting rows:")
+print(len(X_test))
+
+print("\nTesting target distribution:")
+print(y_test.value_counts())
+
+
 # --------------------------------------------------
-# 7. Define columns
+# 7. Define feature groups
 # --------------------------------------------------
 
 numeric_features = [
@@ -106,8 +123,7 @@ numeric_features = [
 categorical_features = [
     "home_ownership",
     "loan_intent",
-    "loan_grade",
-    "historical_default"
+    "loan_grade"
 ]
 
 
@@ -119,11 +135,6 @@ numeric_pipeline = Pipeline([
     (
         "imputer",
         SimpleImputer(strategy="median")
-    ),
-
-    (
-        "scaler",
-        StandardScaler()
     )
 ])
 
@@ -136,8 +147,7 @@ categorical_pipeline = Pipeline([
     (
         "imputer",
         SimpleImputer(
-            strategy="constant",
-            fill_value="UNKNOWN"
+            strategy="most_frequent"
         )
     ),
 
@@ -170,7 +180,7 @@ preprocessor = ColumnTransformer([
 
 
 # --------------------------------------------------
-# 11. Create complete ML pipeline
+# 11. Create Random Forest pipeline
 # --------------------------------------------------
 
 model = Pipeline([
@@ -181,18 +191,21 @@ model = Pipeline([
 
     (
         "classifier",
-        LogisticRegression(
-            max_iter=1000
+        RandomForestClassifier(
+            n_estimators=300,
+            random_state=42,
+            class_weight="balanced",
+            n_jobs=-1
         )
     )
 ])
 
 
 # --------------------------------------------------
-# 12. Train
+# 12. Train model
 # --------------------------------------------------
 
-print("Training model...")
+print("\nTraining Random Forest...")
 
 model.fit(
     X_train,
@@ -206,17 +219,22 @@ print("Training complete.")
 # 13. Predictions
 # --------------------------------------------------
 
-predictions = model.predict(X_test)
+predictions = model.predict(
+    X_test
+)
 
-
-# Probability of DEFAULT
-probabilities = model.predict_proba(X_test)
+probabilities = model.predict_proba(
+    X_test
+)
 
 default_index = list(
     model.classes_
 ).index("DEFAULT")
 
-default_probabilities = probabilities[:, default_index]
+default_probabilities = probabilities[
+    :,
+    default_index
+]
 
 
 # --------------------------------------------------
@@ -290,37 +308,3 @@ print(
         predictions
     )
 )
-# --------------------------------------------------
-# 15. Inspect feature importance / coefficients
-# --------------------------------------------------
-
-feature_names = model[
-    "preprocessor"
-].get_feature_names_out()
-
-coefficients = model[
-    "classifier"
-].coef_[0]
-
-coef_df = pd.DataFrame({
-    "feature": feature_names,
-    "coefficient": coefficients
-})
-
-coef_df["absolute_coefficient"] = (
-    coef_df["coefficient"].abs()
-)
-
-coef_df = coef_df.sort_values(
-    "absolute_coefficient",
-    ascending=False
-)
-
-print("\nTop features influencing the model:")
-print(
-    coef_df[
-        ["feature", "coefficient"]
-    ].head(20)
-)
-print("\nModel classes:")
-print(model["classifier"].classes_)

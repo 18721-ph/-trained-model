@@ -34,14 +34,21 @@ df = pd.read_csv("loan_data.csv")
 # 2. Remove rows without a target
 # --------------------------------------------------
 
-df = df.dropna(subset=["Current_loan_status"])
+df = df.dropna(subset=[
+    "Current_loan_status"
+])
 
 
 # --------------------------------------------------
 # 3. Remove ID
 # --------------------------------------------------
 
-df = df.drop(columns=["customer_id"])
+df = df.drop(
+    columns=[
+    "customer_id" ,
+    "historical_default"
+    ]
+)
 
 
 # --------------------------------------------------
@@ -86,6 +93,17 @@ X_train, X_test, y_train, y_test = train_test_split(
     random_state=42,
     stratify=y
 )
+print("\nRows before split:")
+print(len(df))
+
+print("\nTraining rows:")
+print(len(X_train))
+
+print("\nTesting rows:")
+print(len(X_test))
+
+print("\nTesting target distribution:")
+print(y_test.value_counts())
 
 
 # --------------------------------------------------
@@ -107,7 +125,6 @@ categorical_features = [
     "home_ownership",
     "loan_intent",
     "loan_grade",
-    "historical_default"
 ]
 
 
@@ -218,7 +235,57 @@ default_index = list(
 
 default_probabilities = probabilities[:, default_index]
 
+from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
 
+thresholds = [
+    0.50,
+    0.45,
+    0.40,
+    0.35,
+    0.30
+]
+
+print("\nThreshold comparison:")
+
+for threshold in thresholds:
+
+    threshold_predictions = [
+        "DEFAULT" if probability >= threshold else "NO DEFAULT"
+        for probability in default_probabilities
+    ]
+
+    precision = precision_score(
+        y_test,
+        threshold_predictions,
+        pos_label="DEFAULT"
+    )
+
+    recall = recall_score(
+        y_test,
+        threshold_predictions,
+        pos_label="DEFAULT"
+    )
+
+    f1 = f1_score(
+        y_test,
+        threshold_predictions,
+        pos_label="DEFAULT"
+    )
+
+    matrix = confusion_matrix(
+        y_test,
+        threshold_predictions,
+        labels=["NO DEFAULT", "DEFAULT"]
+    )
+
+    print(f"\nThreshold: {threshold}")
+
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall:    {recall:.4f}")
+    print(f"F1 Score:  {f1:.4f}")
+
+    print("Confusion Matrix:")
+    print(matrix)
 # --------------------------------------------------
 # 14. Evaluation
 # --------------------------------------------------
