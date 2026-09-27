@@ -17,7 +17,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 # 1. Load dataset
 # --------------------------------------------------
 
-df = pd.read_csv(PROJECT_ROOT / "data" / "loan_data.csv")
+df = pd.read_csv("data/loan_data.csv")
 
 
 # --------------------------------------------------
