@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 
 from sklearn.model_selection import StratifiedKFold, cross_validate
@@ -17,11 +19,14 @@ from sklearn.metrics import (
 )
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
 # --------------------------------------------------
 # 1. Load dataset
 # --------------------------------------------------
 
-df = pd.read_csv("loan_data.csv")
+df = pd.read_csv(PROJECT_ROOT / "data" / "loan_data.csv")
 
 
 # --------------------------------------------------

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 
 from sklearn.model_selection import train_test_split
@@ -18,11 +20,14 @@ from sklearn.metrics import (
 )
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
 # --------------------------------------------------
 # 1. Load dataset
 # --------------------------------------------------
 
-df = pd.read_csv("loan_data.csv")
+df = pd.read_csv(PROJECT_ROOT / "data" / "loan_data.csv")
 
 
 # --------------------------------------------------
@@ -235,75 +240,7 @@ default_probabilities = probabilities[
     :,
     default_index
 ]
-thresholds = [
-    0.50,
-    0.45,
-    0.40,
-    0.35,
-    0.30
-]
 
-print("\nRANDOM FOREST THRESHOLD COMPARISON")
-
-for threshold in thresholds:
-
-    threshold_predictions = [
-        "DEFAULT"
-        if probability >= threshold
-        else "NO DEFAULT"
-
-        for probability
-        in default_probabilities
-    ]
-
-    precision = precision_score(
-        y_test,
-        threshold_predictions,
-        pos_label="DEFAULT"
-    )
-
-    recall = recall_score(
-        y_test,
-        threshold_predictions,
-        pos_label="DEFAULT"
-    )
-
-    f1 = f1_score(
-        y_test,
-        threshold_predictions,
-        pos_label="DEFAULT"
-    )
-
-    matrix = confusion_matrix(
-        y_test,
-        threshold_predictions,
-        labels=[
-            "NO DEFAULT",
-            "DEFAULT"
-        ]
-    )
-
-    print(
-        f"\nThreshold: {threshold}"
-    )
-
-    print(
-        f"Precision: {precision:.4f}"
-    )
-
-    print(
-        f"Recall:    {recall:.4f}"
-    )
-
-    print(
-        f"F1 Score:  {f1:.4f}"
-    )
-
-    print(
-        "Confusion Matrix:"
-    )
-
-    print(matrix)
 
 # --------------------------------------------------
 # 14. Evaluation

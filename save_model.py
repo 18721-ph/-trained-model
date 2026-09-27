@@ -1,7 +1,8 @@
+from pathlib import Path
+
 import pandas as pd
 import joblib
 
-from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
@@ -9,11 +10,14 @@ from sklearn.impute import SimpleImputer
 from sklearn.ensemble import RandomForestClassifier
 
 
+PROJECT_ROOT = Path(__file__).resolve().parent
+
+
 # --------------------------------------------------
 # 1. Load dataset
 # --------------------------------------------------
 
-df = pd.read_csv("loan_data.csv")
+df = pd.read_csv(PROJECT_ROOT / "data" / "loan_data.csv")
 
 
 # --------------------------------------------------
@@ -188,11 +192,10 @@ print("Training complete.")
 # 13. Save model
 # --------------------------------------------------
 
-joblib.dump(
-    model,
-    "loan_default_model.joblib"
-)
+model_path = PROJECT_ROOT / "model" / "loan_default_model.joblib"
+model_path.parent.mkdir(parents=True, exist_ok=True)
+joblib.dump(model, model_path)
 
 print(
-    "\nModel saved as loan_default_model.joblib"
+    f"\nModel saved to {model_path}"
 )

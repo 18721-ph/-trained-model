@@ -1,6 +1,11 @@
+from pathlib import Path
+
 import pandas as pd
 
-df = pd.read_csv("cleaned_loan_data.csv")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+df = pd.read_csv(PROJECT_ROOT / "data" / "cleaned_loan_data.csv")
 
 # Create a temporary numeric version of the target
 # ONLY for exploratory analysis.
