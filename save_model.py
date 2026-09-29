@@ -1,37 +1,71 @@
 from pathlib import Path
 
-import pandas as pd
 import joblib
+import numpy as np
+import pandas as pd
 
 from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.impute import SimpleImputer
-from sklearn.ensemble import RandomForestClassifier
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+# ==================================================
+# PATHS
+# ==================================================
+
+BASE_DIR = Path(__file__).resolve().parent
+
+DATA_PATH = (
+    BASE_DIR
+    / "data"
+    / "loan_data.csv"
+)
+
+MODEL_DIR = (
+    BASE_DIR
+    / "model"
+)
+
+MODEL_PATH = (
+    MODEL_DIR
+    / "loan_default_model.joblib"
+)
 
 
-# --------------------------------------------------
-# 1. Load dataset
-# --------------------------------------------------
+# Create model directory if it does not exist
+MODEL_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
 
-df = pd.read_csv("data/loan_data.csv")
+
+# ==================================================
+# 1. LOAD DATA
+# ==================================================
+
+print("Loading loan dataset...")
+
+df = pd.read_csv(DATA_PATH)
+
+print(
+    f"Rows loaded: {len(df)}"
+)
 
 
-# --------------------------------------------------
-# 2. Remove rows without target
-# --------------------------------------------------
+# ==================================================
+# 2. REMOVE ROWS WITHOUT TARGET
+# ==================================================
 
 df = df.dropna(
     subset=["Current_loan_status"]
 )
 
 
-# --------------------------------------------------
-# 3. Remove ID and suspicious history feature
-# --------------------------------------------------
+# ==================================================
+# 3. REMOVE UNUSED / SUSPICIOUS FEATURES
+# ==================================================
 
 df = df.drop(
     columns=[
@@ -41,9 +75,9 @@ df = df.drop(
 )
 
 
-# --------------------------------------------------
-# 4. Clean customer_income
-# --------------------------------------------------
+# ==================================================
+# 4. CLEAN NUMERIC COLUMNS
+# ==================================================
 
 df["customer_income"] = pd.to_numeric(
     df["customer_income"],
@@ -51,14 +85,27 @@ df["customer_income"] = pd.to_numeric(
 )
 
 
-# --------------------------------------------------
-# 5. Clean loan amount
-# --------------------------------------------------
+# Convert loan amount such as:
+#
+# £35,000.00
+#
+# into:
+#
+# 35000.00
 
 df["loan_amnt"] = (
     df["loan_amnt"]
-    .str.replace("£", "", regex=False)
-    .str.replace(",", "", regex=False)
+    .astype(str)
+    .str.replace(
+        "£",
+        "",
+        regex=False
+    )
+    .str.replace(
+        ",",
+        "",
+        regex=False
+    )
 )
 
 df["loan_amnt"] = pd.to_numeric(
@@ -67,20 +114,99 @@ df["loan_amnt"] = pd.to_numeric(
 )
 
 
-# --------------------------------------------------
-# 6. Features and target
-# --------------------------------------------------
+# ==================================================
+# 5. FEATURE ENGINEERING
+# ==================================================
 
-X = df.drop(
-    columns=["Current_loan_status"]
+# ----------------------------------------------
+# Feature 1:
+# Loan amount relative to income
+# ----------------------------------------------
+
+df["loan_to_income"] = (
+    df["loan_amnt"]
+    / df["customer_income"]
 )
 
-y = df["Current_loan_status"]
+
+# ----------------------------------------------
+# Feature 2:
+# Approximate annual interest amount
+#
+# Example:
+#
+# loan = 10,000
+# rate = 10%
+#
+# interest_burden = 1,000
+# ----------------------------------------------
+
+df["interest_burden"] = (
+    df["loan_amnt"]
+    * (
+        df["loan_int_rate"]
+        / 100
+    )
+)
 
 
-# --------------------------------------------------
-# 7. Feature groups
-# --------------------------------------------------
+# ----------------------------------------------
+# Feature 3:
+# Credit history relative to age
+#
+# Example:
+#
+# age = 40
+# credit history = 10 years
+#
+# ratio = 10 / 40 = 0.25
+# ----------------------------------------------
+
+df["credit_history_ratio"] = (
+    df["cred_hist_length"]
+    / df["customer_age"]
+)
+
+
+# Replace infinity caused by division by zero
+engineered_features = [
+    "loan_to_income",
+    "interest_burden",
+    "credit_history_ratio"
+]
+
+for feature in engineered_features:
+
+    df[feature] = (
+        df[feature]
+        .replace(
+            [
+                np.inf,
+                -np.inf
+            ],
+            np.nan
+        )
+    )
+
+
+# ==================================================
+# 6. FEATURES AND TARGET
+# ==================================================
+
+X = df.drop(
+    columns=[
+        "Current_loan_status"
+    ]
+)
+
+y = df[
+    "Current_loan_status"
+]
+
+
+# ==================================================
+# 7. DEFINE NUMERIC FEATURES
+# ==================================================
 
 numeric_features = [
     "customer_age",
@@ -89,9 +215,18 @@ numeric_features = [
     "loan_amnt",
     "loan_int_rate",
     "term_years",
-    "cred_hist_length"
+    "cred_hist_length",
+
+    # Engineered features
+    "loan_to_income",
+    "interest_burden",
+    "credit_history_ratio"
 ]
 
+
+# ==================================================
+# 8. DEFINE CATEGORICAL FEATURES
+# ==================================================
 
 categorical_features = [
     "home_ownership",
@@ -100,21 +235,23 @@ categorical_features = [
 ]
 
 
-# --------------------------------------------------
-# 8. Numeric preprocessing
-# --------------------------------------------------
+# ==================================================
+# 9. NUMERIC PREPROCESSING
+# ==================================================
 
 numeric_pipeline = Pipeline([
     (
         "imputer",
-        SimpleImputer(strategy="median")
+        SimpleImputer(
+            strategy="median"
+        )
     )
 ])
 
 
-# --------------------------------------------------
-# 9. Categorical preprocessing
-# --------------------------------------------------
+# ==================================================
+# 10. CATEGORICAL PREPROCESSING
+# ==================================================
 
 categorical_pipeline = Pipeline([
     (
@@ -133,9 +270,9 @@ categorical_pipeline = Pipeline([
 ])
 
 
-# --------------------------------------------------
-# 10. Combine preprocessing
-# --------------------------------------------------
+# ==================================================
+# 11. COMBINE PREPROCESSING
+# ==================================================
 
 preprocessor = ColumnTransformer([
     (
@@ -152,9 +289,21 @@ preprocessor = ColumnTransformer([
 ])
 
 
-# --------------------------------------------------
-# 11. Random Forest
-# --------------------------------------------------
+# ==================================================
+# 12. RANDOM FOREST
+# ==================================================
+
+classifier = RandomForestClassifier(
+    n_estimators=300,
+    random_state=42,
+    class_weight="balanced",
+    n_jobs=-1
+)
+
+
+# ==================================================
+# 13. FULL PIPELINE
+# ==================================================
 
 model = Pipeline([
     (
@@ -164,38 +313,70 @@ model = Pipeline([
 
     (
         "classifier",
-        RandomForestClassifier(
-            n_estimators=300,
-            random_state=42,
-            class_weight="balanced",
-            n_jobs=-1
-        )
+        classifier
     )
 ])
 
 
-# --------------------------------------------------
-# 12. Train on ALL available data
-# --------------------------------------------------
+# ==================================================
+# 14. TRAIN FINAL MODEL
+# ==================================================
 
-print("Training final Random Forest model...")
+print(
+    "\nTraining final Random Forest model..."
+)
+
+print(
+    "Engineered features:"
+)
+
+for feature in engineered_features:
+    print(
+        f" - {feature}"
+    )
+
 
 model.fit(
     X,
     y
 )
 
-print("Training complete.")
-
-
-# --------------------------------------------------
-# 13. Save model
-# --------------------------------------------------
-
-model_path = PROJECT_ROOT / "model" / "loan_default_model.joblib"
-model_path.parent.mkdir(parents=True, exist_ok=True)
-joblib.dump(model, model_path)
 
 print(
-    f"\nModel saved to {model_path}"
+    "\nTraining complete."
+)
+
+
+# ==================================================
+# 15. SAVE MODEL
+# ==================================================
+
+joblib.dump(
+    model,
+    MODEL_PATH
+)
+
+
+print(
+    f"\nModel saved to:"
+)
+
+print(
+    MODEL_PATH
+)
+
+
+print(
+    "\nFinal training rows:",
+    len(X)
+)
+
+print(
+    "Number of input columns:",
+    len(X.columns)
+)
+
+print(
+    "\nModel classes:",
+    model["classifier"].classes_
 )

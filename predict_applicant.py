@@ -1,122 +1,207 @@
+from pathlib import Path
+
 import joblib
-import pandas as pd
 import numpy as np
+import pandas as pd
 import shap
 
-from pathlib import Path
+
+# ==================================================
+# PATHS
+# ==================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 
-MODEL_PATH =(
+MODEL_PATH = (
     BASE_DIR
     / "model"
     / "loan_default_model.joblib"
 )
-# --------------------------------------------------
-# 1. Load trained model
-# --------------------------------------------------
 
-model = joblib.load(MODEL_PATH)
 
-print("\nLoan Default Prediction")
-print("-----------------------")
+# ==================================================
+# LOAD MODEL
+# ==================================================
 
-def get_int(prompt, min_value=None, max_value=None):
+model = joblib.load(
+    MODEL_PATH
+)
+
+
+# ==================================================
+# VALIDATION FUNCTIONS
+# ==================================================
+
+def get_int(
+    prompt,
+    min_value=None,
+    max_value=None
+):
     while True:
+
         try:
-            value = int(input(prompt))
-
-            if min_value is not None and value < min_value:
-                print(
-                    f"Value must be at least {min_value}."
-                )
-                continue
-
-            if max_value is not None and value > max_value:
-                print(
-                    f"Value must not be more than {max_value}."
-                )
-                continue
-
-            return value
+            value = int(
+                input(prompt)
+            )
 
         except ValueError:
+
             print(
                 "Please enter a whole number."
             )
 
+            continue
 
-def get_float(prompt, min_value=None, max_value=None):
+
+        if (
+            min_value is not None
+            and value < min_value
+        ):
+            print(
+                f"Value must be at least {min_value}."
+            )
+
+            continue
+
+
+        if (
+            max_value is not None
+            and value > max_value
+        ):
+            print(
+                f"Value must not exceed {max_value}."
+            )
+
+            continue
+
+
+        return value
+
+
+def get_float(
+    prompt,
+    min_value=None,
+    max_value=None
+):
     while True:
+
         try:
-            value = float(input(prompt))
-
-            if min_value is not None and value < min_value:
-                print(
-                    f"Value must be at least {min_value}."
-                )
-                continue
-
-            if max_value is not None and value > max_value:
-                print(
-                    f"Value must not be more than {max_value}."
-                )
-                continue
-
-            return value
+            value = float(
+                input(prompt)
+            )
 
         except ValueError:
+
             print(
                 "Please enter a valid number."
             )
 
+            continue
 
-def get_choice(prompt, allowed_values):
+
+        if (
+            min_value is not None
+            and value < min_value
+        ):
+            print(
+                f"Value must be at least {min_value}."
+            )
+
+            continue
+
+
+        if (
+            max_value is not None
+            and value > max_value
+        ):
+            print(
+                f"Value must not exceed {max_value}."
+            )
+
+            continue
+
+
+        return value
+
+
+def get_choice(
+    prompt,
+    allowed_values
+):
+
     while True:
-        value = input(prompt).strip().upper()
+
+        value = (
+            input(prompt)
+            .strip()
+            .upper()
+        )
+
 
         if value in allowed_values:
             return value
 
+
         print(
-            "Invalid option."
+            "\nInvalid option."
         )
 
         print(
             "Allowed values:",
-            ", ".join(allowed_values)
+            ", ".join(
+                allowed_values
+            )
         )
-# --------------------------------------------------
-# 2. Collect applicant information
-# --------------------------------------------------
+
+
+# ==================================================
+# START
+# ==================================================
+
+print(
+    "\nLoan Default Prediction"
+)
+
+print(
+    "-----------------------"
+)
+
+
+# ==================================================
+# COLLECT APPLICANT DATA
+# ==================================================
 
 customer_age = get_int(
     "Customer age: ",
     min_value=18,
     max_value=100
 )
+
+
 customer_income = get_float(
     "Customer income: ",
-    min_value=0
+    min_value=1
 )
 
+
 home_ownership = get_choice(
-    "Home ownership" 
+    "Home ownership "
     "(RENT / OWN / MORTGAGE / OTHER): ",
     [
         "RENT",
         "OWN",
         "MORTGAGE",
         "OTHER"
-]
+    ]
 )
 
 
 employment_duration = get_float(
     "Employment duration (years): ",
     min_value=0,
-    max_value=60
+    max_value=70
 )
+
 
 loan_intent = get_choice(
     "Loan intent "
@@ -132,6 +217,7 @@ loan_intent = get_choice(
     ]
 )
 
+
 loan_grade = get_choice(
     "Loan grade (A / B / C / D / E): ",
     [
@@ -141,12 +227,14 @@ loan_grade = get_choice(
         "D",
         "E"
     ]
-).strip().upper()
+)
+
 
 loan_amnt = get_float(
     "Loan amount: ",
     min_value=1
 )
+
 
 loan_int_rate = get_float(
     "Loan interest rate (%): ",
@@ -154,11 +242,13 @@ loan_int_rate = get_float(
     max_value=50
 )
 
+
 term_years = get_int(
     "Loan term (years): ",
     min_value=1,
     max_value=30
 )
+
 
 cred_hist_length = get_int(
     "Credit history length (years): ",
@@ -166,10 +256,36 @@ cred_hist_length = get_int(
     max_value=80
 )
 
-while cred_hist_length > customer_age:
+
+# ==================================================
+# RELATIONSHIP VALIDATION
+# ==================================================
+
+while employment_duration > (
+    customer_age - 14
+):
+
     print(
-        "Credit history length cannot be greater "
-        "than customer age."
+        "\nEmployment duration appears inconsistent "
+        "with customer age."
+    )
+
+    print(
+        "Please enter the employment duration again."
+    )
+
+    employment_duration = get_float(
+        "Employment duration (years): ",
+        min_value=0,
+        max_value=70
+    )
+
+
+while cred_hist_length > customer_age:
+
+    print(
+        "\nCredit history cannot be longer "
+        "than the customer's age."
     )
 
     cred_hist_length = get_int(
@@ -178,40 +294,108 @@ while cred_hist_length > customer_age:
         max_value=80
     )
 
-# --------------------------------------------------
-# 3. Applicant dataframe
-# --------------------------------------------------
+
+# ==================================================
+# FEATURE ENGINEERING
+# ==================================================
+
+loan_to_income = (
+    loan_amnt
+    / customer_income
+)
+
+
+interest_burden = (
+    loan_amnt
+    * (
+        loan_int_rate
+        / 100
+    )
+)
+
+
+credit_history_ratio = (
+    cred_hist_length
+    / customer_age
+)
+
+
+# ==================================================
+# CREATE DATAFRAME
+# ==================================================
 
 applicant = pd.DataFrame([
     {
-        "customer_age": customer_age,
-        "customer_income": customer_income,
-        "home_ownership": home_ownership,
-        "employment_duration": employment_duration,
-        "loan_intent": loan_intent,
-        "loan_grade": loan_grade,
-        "loan_amnt": loan_amnt,
-        "loan_int_rate": loan_int_rate,
-        "term_years": term_years,
-        "cred_hist_length": cred_hist_length
+        "customer_age":
+            customer_age,
+
+        "customer_income":
+            customer_income,
+
+        "home_ownership":
+            home_ownership,
+
+        "employment_duration":
+            employment_duration,
+
+        "loan_intent":
+            loan_intent,
+
+        "loan_grade":
+            loan_grade,
+
+        "loan_amnt":
+            loan_amnt,
+
+        "loan_int_rate":
+            loan_int_rate,
+
+        "term_years":
+            term_years,
+
+        "cred_hist_length":
+            cred_hist_length,
+
+        # Engineered features
+        "loan_to_income":
+            loan_to_income,
+
+        "interest_burden":
+            interest_burden,
+
+        "credit_history_ratio":
+            credit_history_ratio
     }
 ])
 
 
-# --------------------------------------------------
-# 4. Prediction
-# --------------------------------------------------
+# ==================================================
+# PREDICTION
+# ==================================================
 
-prediction = model.predict(applicant)[0]
+prediction = model.predict(
+    applicant
+)[0]
 
-probabilities = model.predict_proba(applicant)[0]
+
+probabilities = model.predict_proba(
+    applicant
+)[0]
+
 
 classes = list(
-    model["classifier"].classes_
+    model.classes_
 )
 
-default_index = classes.index("DEFAULT")
-no_default_index = classes.index("NO DEFAULT")
+
+default_index = classes.index(
+    "DEFAULT"
+)
+
+no_default_index = classes.index(
+    "NO DEFAULT"
+)
+
 
 default_probability = probabilities[
     default_index
@@ -222,364 +406,513 @@ no_default_probability = probabilities[
 ]
 
 
-# --------------------------------------------------
-# 5. Display prediction
-# --------------------------------------------------
+# ==================================================
+# RESULTS
+# ==================================================
 
-print("\n================================")
-print("PREDICTION RESULT")
-print("================================")
+print(
+    "\n================================"
+)
+
+print(
+    "PREDICTION RESULT"
+)
+
+print(
+    "================================"
+)
+
 
 print(
     f"Probability of DEFAULT: "
     f"{default_probability * 100:.2f}%"
 )
 
+
 print(
     f"Probability of NO DEFAULT: "
     f"{no_default_probability * 100:.2f}%"
 )
+
 
 print(
     f"\nFinal Prediction: {prediction}"
 )
 
 
-# --------------------------------------------------
-# 6. Prepare data for explanation
-# --------------------------------------------------
+# ==================================================
+# SHOW ENGINEERED VALUES
+# ==================================================
 
-preprocessor = model[
-    "preprocessor"
-]
-
-classifier = model[
-    "classifier"
-]
-
-transformed_applicant = preprocessor.transform(
-    applicant
+print(
+    "\n================================"
 )
 
-# SHAP works more reliably with dense input
-if hasattr(
-    transformed_applicant,
-    "toarray"
-):
-    transformed_applicant = (
-        transformed_applicant.toarray()
-    )
+print(
+    "DERIVED FINANCIAL FEATURES"
+)
 
-
-feature_names = (
-    preprocessor
-    .get_feature_names_out()
+print(
+    "================================"
 )
 
 
-# --------------------------------------------------
-# 7. Build SHAP explanation
-# --------------------------------------------------
-
-explainer = shap.TreeExplainer(
-    classifier
-)
-
-shap_result = explainer(
-    transformed_applicant
+print(
+    f"Loan-to-income ratio: "
+    f"{loan_to_income:.3f}"
 )
 
 
-# --------------------------------------------------
-# 8. Extract SHAP values for DEFAULT class
-# --------------------------------------------------
+print(
+    f"Approx. annual interest amount: "
+    f"{interest_burden:,.2f}"
+)
 
-values = shap_result.values
 
-# Newer SHAP versions may return:
-# (samples, features, classes)
-if values.ndim == 3:
+print(
+    f"Credit-history-to-age ratio: "
+    f"{credit_history_ratio:.3f}"
+)
 
-    default_shap_values = values[
-        0,
-        :,
-        default_index
+
+# ==================================================
+# SHAP EXPLANATION
+# ==================================================
+
+try:
+
+    preprocessor = model[
+        "preprocessor"
     ]
 
-else:
-
-    default_shap_values = values[0]
-
-
-# --------------------------------------------------
-# 9. Group encoded columns back into original fields
-# --------------------------------------------------
-
-feature_groups = {
-    "customer_age": 0.0,
-    "customer_income": 0.0,
-    "home_ownership": 0.0,
-    "employment_duration": 0.0,
-    "loan_intent": 0.0,
-    "loan_grade": 0.0,
-    "loan_amnt": 0.0,
-    "loan_int_rate": 0.0,
-    "term_years": 0.0,
-    "cred_hist_length": 0.0
-}
+    classifier = model[
+        "classifier"
+    ]
 
 
-for feature_name, shap_value in zip(
-    feature_names,
-    default_shap_values
-):
-
-    clean_name = feature_name.replace(
-        "numeric__",
-        ""
+    transformed_applicant = (
+        preprocessor.transform(
+            applicant
+        )
     )
 
-    clean_name = clean_name.replace(
-        "categorical__",
-        ""
+
+    # Convert sparse matrix to dense if necessary
+    if hasattr(
+        transformed_applicant,
+        "toarray"
+    ):
+        transformed_applicant = (
+            transformed_applicant
+            .toarray()
+        )
+
+
+    feature_names = (
+        preprocessor
+        .get_feature_names_out()
     )
 
-    matched = False
 
-    for original_feature in feature_groups:
+    # ----------------------------------------------
+    # Create Tree SHAP explainer
+    # ----------------------------------------------
 
-        if (
-            clean_name == original_feature
-            or
-            clean_name.startswith(
-                original_feature + "_"
+    explainer = shap.TreeExplainer(
+        classifier
+    )
+
+
+    shap_values = (
+        explainer.shap_values(
+            transformed_applicant
+        )
+    )
+
+
+    # ----------------------------------------------
+    # Handle different SHAP versions
+    # ----------------------------------------------
+
+    if isinstance(
+        shap_values,
+        list
+    ):
+
+        local_values = (
+            shap_values[
+                default_index
+            ][0]
+        )
+
+    else:
+
+        shap_array = np.asarray(
+            shap_values
+        )
+
+
+        if shap_array.ndim == 3:
+
+            local_values = (
+                shap_array[
+                    0,
+                    :,
+                    default_index
+                ]
             )
-        ):
 
-            feature_groups[
-                original_feature
-            ] += float(shap_value)
+        elif shap_array.ndim == 2:
 
-            matched = True
-            break
+            local_values = (
+                shap_array[0]
+            )
 
+        else:
 
-# --------------------------------------------------
-# 10. Values for human-readable explanation
-# --------------------------------------------------
-
-display_values = {
-
-    "customer_age":
-        f"{customer_age} years",
-
-    "customer_income":
-        f"{customer_income:,.0f}",
-
-    "home_ownership":
-        home_ownership,
-
-    "employment_duration":
-        f"{employment_duration:g} years",
-
-    "loan_intent":
-        loan_intent,
-
-    "loan_grade":
-        loan_grade,
-
-    "loan_amnt":
-        f"{loan_amnt:,.0f}",
-
-    "loan_int_rate":
-        f"{loan_int_rate:g}%",
-
-    "term_years":
-        f"{term_years} years",
-
-    "cred_hist_length":
-        f"{cred_hist_length} years"
-}
+            raise ValueError(
+                "Unexpected SHAP output shape."
+            )
 
 
-friendly_names = {
+    # ==================================================
+    # GROUP ONE-HOT FEATURES BACK INTO ORIGINAL FEATURES
+    # ==================================================
 
-    "customer_age":
-        "Customer age",
-
-    "customer_income":
-        "Customer income",
-
-    "home_ownership":
-        "Home ownership",
-
-    "employment_duration":
-        "Employment duration",
-
-    "loan_intent":
-        "Loan purpose",
-
-    "loan_grade":
-        "Loan grade",
-
-    "loan_amnt":
-        "Loan amount",
-
-    "loan_int_rate":
-        "Interest rate",
-
-    "term_years":
-        "Loan term",
-
-    "cred_hist_length":
-        "Credit history length"
-}
+    original_features = [
+        "customer_age",
+        "customer_income",
+        "home_ownership",
+        "employment_duration",
+        "loan_intent",
+        "loan_grade",
+        "loan_amnt",
+        "loan_int_rate",
+        "term_years",
+        "cred_hist_length",
+        "loan_to_income",
+        "interest_burden",
+        "credit_history_ratio"
+    ]
 
 
-# --------------------------------------------------
-# 11. Sort features by strength
-# --------------------------------------------------
-
-sorted_features = sorted(
-    feature_groups.items(),
-    key=lambda item: abs(item[1]),
-    reverse=True
-)
-
-
-risk_increasing = []
-
-risk_reducing = []
-
-
-for feature, contribution in sorted_features:
-
-    information = {
-        "feature": feature,
-        "name": friendly_names[feature],
-        "value": display_values[feature],
-        "contribution": contribution
+    grouped_impacts = {
+        feature: 0.0
+        for feature
+        in original_features
     }
 
-    if contribution > 0:
 
-        risk_increasing.append(
-            information
+    for (
+        transformed_feature,
+        shap_value
+    ) in zip(
+        feature_names,
+        local_values
+    ):
+
+        clean_name = (
+            transformed_feature
+            .replace(
+                "numeric__",
+                ""
+            )
+            .replace(
+                "categorical__",
+                ""
+            )
         )
 
-    elif contribution < 0:
 
-        risk_reducing.append(
-            information
+        matched = False
+
+
+        # Exact numeric feature
+        if clean_name in grouped_impacts:
+
+            grouped_impacts[
+                clean_name
+            ] += float(
+                shap_value
+            )
+
+            matched = True
+
+
+        # One-hot categorical feature
+        if not matched:
+
+            for original in [
+                "home_ownership",
+                "loan_intent",
+                "loan_grade"
+            ]:
+
+                if clean_name.startswith(
+                    original + "_"
+                ):
+
+                    grouped_impacts[
+                        original
+                    ] += float(
+                        shap_value
+                    )
+
+                    break
+
+
+    # ==================================================
+    # FRIENDLY NAMES
+    # ==================================================
+
+    friendly_names = {
+
+        "customer_age":
+            "Customer age",
+
+        "customer_income":
+            "Customer income",
+
+        "home_ownership":
+            "Home ownership",
+
+        "employment_duration":
+            "Employment duration",
+
+        "loan_intent":
+            "Loan purpose",
+
+        "loan_grade":
+            "Loan grade",
+
+        "loan_amnt":
+            "Loan amount",
+
+        "loan_int_rate":
+            "Interest rate",
+
+        "term_years":
+            "Loan term",
+
+        "cred_hist_length":
+            "Credit history length",
+
+        "loan_to_income":
+            "Loan-to-income ratio",
+
+        "interest_burden":
+            "Approx. annual interest amount",
+
+        "credit_history_ratio":
+            "Credit-history-to-age ratio"
+    }
+
+
+    display_values = {
+
+        "customer_age":
+            f"{customer_age} years",
+
+        "customer_income":
+            f"{customer_income:,.2f}",
+
+        "home_ownership":
+            home_ownership,
+
+        "employment_duration":
+            f"{employment_duration:g} years",
+
+        "loan_intent":
+            loan_intent,
+
+        "loan_grade":
+            loan_grade,
+
+        "loan_amnt":
+            f"{loan_amnt:,.2f}",
+
+        "loan_int_rate":
+            f"{loan_int_rate:g}%",
+
+        "term_years":
+            f"{term_years} years",
+
+        "cred_hist_length":
+            f"{cred_hist_length} years",
+
+        "loan_to_income":
+            f"{loan_to_income:.3f}",
+
+        "interest_burden":
+            f"{interest_burden:,.2f}",
+
+        "credit_history_ratio":
+            f"{credit_history_ratio:.3f}"
+    }
+
+
+    # ==================================================
+    # SORT BY IMPORTANCE FOR THIS APPLICANT
+    # ==================================================
+
+    sorted_impacts = sorted(
+        grouped_impacts.items(),
+        key=lambda item: abs(
+            item[1]
+        ),
+        reverse=True
+    )
+
+
+    risk_increasing = [
+        item
+        for item
+        in sorted_impacts
+        if item[1] > 0
+    ]
+
+
+    risk_reducing = [
+        item
+        for item
+        in sorted_impacts
+        if item[1] < 0
+    ]
+
+
+    # ==================================================
+    # PRINT EXPLANATION
+    # ==================================================
+
+    print(
+        "\n================================"
+    )
+
+    print(
+        "WHY THE MODEL MADE THIS DECISION"
+    )
+
+    print(
+        "================================"
+    )
+
+
+    if risk_increasing:
+
+        print(
+            "\nFactors that pushed the model "
+            "toward DEFAULT:"
         )
 
 
-# --------------------------------------------------
-# 12. Explanation
-# --------------------------------------------------
+        for (
+            feature,
+            impact
+        ) in risk_increasing[:5]:
 
-print("\n================================")
-print("WHY THE MODEL MADE THIS DECISION")
-print("================================")
+            print(
+                f"- "
+                f"{friendly_names[feature]} "
+                f"({display_values[feature]}) "
+                f"increased the model's estimated "
+                f"default risk "
+                f"(impact: {impact:+.4f})."
+            )
+
+
+    if risk_reducing:
+
+        print(
+            "\nFactors that pushed the model "
+            "toward NO DEFAULT:"
+        )
+
+
+        for (
+            feature,
+            impact
+        ) in risk_reducing[:5]:
+
+            print(
+                f"- "
+                f"{friendly_names[feature]} "
+                f"({display_values[feature]}) "
+                f"reduced the model's estimated "
+                f"default risk "
+                f"(impact: {impact:+.4f})."
+            )
+
+
+except Exception as error:
+
+    print(
+        "\nPrediction succeeded, "
+        "but the SHAP explanation "
+        "could not be generated."
+    )
+
+    print(
+        "Explanation error:",
+        error
+    )
+
+
+# ==================================================
+# FINAL EXPLANATION
+# ==================================================
+
+print(
+    "\n================================"
+)
+
+print(
+    "MODEL EXPLANATION"
+)
+
+print(
+    "================================"
+)
 
 
 print(
-    "\nFactors that pushed the prediction "
-    "toward DEFAULT:"
+    f"\nThe model classified this "
+    f"applicant as {prediction}."
 )
-
-if len(risk_increasing) == 0:
-
-    print(
-        "- No major features strongly pushed "
-        "the prediction toward default."
-    )
-
-else:
-
-    for item in risk_increasing[:5]:
-
-        print(
-            f"- {item['name']} "
-            f"({item['value']}) "
-            f"increased the model's estimated "
-            f"default risk "
-            f"(impact: {item['contribution']:+.4f})."
-        )
 
 
 print(
-    "\nFactors that pushed the prediction "
-    "toward NO DEFAULT:"
+    "\nThe model considered the applicant's "
+    "income, loan characteristics, employment, "
+    "credit history, home ownership, loan grade "
+    "and engineered financial relationships."
 )
 
-if len(risk_reducing) == 0:
+
+print(
+    f"\nEstimated probability of default: "
+    f"{default_probability * 100:.2f}%"
+)
+
+
+if default_probability >= 0.50:
 
     print(
-        "- No major features strongly pushed "
-        "the prediction toward no default."
-    )
-
-else:
-
-    for item in risk_reducing[:5]:
-
-        print(
-            f"- {item['name']} "
-            f"({item['value']}) "
-            f"reduced the model's estimated "
-            f"default risk "
-            f"(impact: {item['contribution']:+.4f})."
-        )
-
-
-# --------------------------------------------------
-# 13. Final plain-English conclusion
-# --------------------------------------------------
-
-print("\n================================")
-print("MODEL EXPLANATION")
-print("================================")
-
-
-if prediction == "DEFAULT":
-
-    print(
-        f"""
-The model classified this applicant as DEFAULT.
-
-After analysing the applicant's income,
-loan characteristics, employment history,
-credit history, home ownership and loan grade,
-the combination of risk-increasing factors
-was strong enough to produce a
-{default_probability * 100:.2f}% estimated
-probability of default.
-
-Because this probability is above the current
-50% classification threshold, the final
-prediction is DEFAULT.
-"""
+        "\nBecause this probability is at or "
+        "above the current 50% classification "
+        "threshold, the final prediction is DEFAULT."
     )
 
 else:
 
     print(
-        f"""
-The model classified this applicant as NO DEFAULT.
-
-The model found some factors that increased
-default risk and others that reduced it.
-When all of these effects were combined,
-the estimated probability of default was
-{default_probability * 100:.2f}%.
-
-Because this is below the current 50%
-classification threshold, the final
-prediction is NO DEFAULT.
-
-The strongest factors shown above explain
-which applicant characteristics moved the
-prediction toward or away from default.
-"""
+        "\nBecause this probability is below "
+        "the current 50% classification threshold, "
+        "the final prediction is NO DEFAULT."
     )
+
+
+print(
+    "\nNote: SHAP explains how this model "
+    "used the inputs. It does not prove that "
+    "any feature causes loan default."
+)
