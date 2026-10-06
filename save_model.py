@@ -9,6 +9,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.calibration import CalibratedClassifierCV
 
 
 # ==================================================
@@ -28,13 +29,17 @@ MODEL_DIR = (
     / "model"
 )
 
-MODEL_PATH = (
+BASE_MODEL_PATH = (
     MODEL_DIR
-    / "loan_default_model.joblib"
+    / "base_random_forest.joblib"
+)
+
+CALIBRATED_MODEL_PATH = (
+    MODEL_DIR
+    / "calibrated_loan_default_model.joblib"
 )
 
 
-# Create model directory if it does not exist
 MODEL_DIR.mkdir(
     parents=True,
     exist_ok=True
@@ -42,29 +47,34 @@ MODEL_DIR.mkdir(
 
 
 # ==================================================
-# 1. LOAD DATA
+# LOAD DATA
 # ==================================================
 
-print("Loading loan dataset...")
+print("Loading dataset...")
 
-df = pd.read_csv(DATA_PATH)
+df = pd.read_csv(
+    DATA_PATH
+)
 
 print(
-    f"Rows loaded: {len(df)}"
+    "Rows loaded:",
+    len(df)
 )
 
 
 # ==================================================
-# 2. REMOVE ROWS WITHOUT TARGET
+# REMOVE MISSING TARGET
 # ==================================================
 
 df = df.dropna(
-    subset=["Current_loan_status"]
+    subset=[
+        "Current_loan_status"
+    ]
 )
 
 
 # ==================================================
-# 3. REMOVE UNUSED / SUSPICIOUS FEATURES
+# REMOVE UNUSED FEATURES
 # ==================================================
 
 df = df.drop(
@@ -76,7 +86,7 @@ df = df.drop(
 
 
 # ==================================================
-# 4. CLEAN NUMERIC COLUMNS
+# CLEAN NUMERIC COLUMNS
 # ==================================================
 
 df["customer_income"] = pd.to_numeric(
@@ -84,14 +94,6 @@ df["customer_income"] = pd.to_numeric(
     errors="coerce"
 )
 
-
-# Convert loan amount such as:
-#
-# £35,000.00
-#
-# into:
-#
-# 35000.00
 
 df["loan_amnt"] = (
     df["loan_amnt"]
@@ -108,6 +110,7 @@ df["loan_amnt"] = (
     )
 )
 
+
 df["loan_amnt"] = pd.to_numeric(
     df["loan_amnt"],
     errors="coerce"
@@ -115,31 +118,14 @@ df["loan_amnt"] = pd.to_numeric(
 
 
 # ==================================================
-# 5. FEATURE ENGINEERING
+# FEATURE ENGINEERING
 # ==================================================
-
-# ----------------------------------------------
-# Feature 1:
-# Loan amount relative to income
-# ----------------------------------------------
 
 df["loan_to_income"] = (
     df["loan_amnt"]
     / df["customer_income"]
 )
 
-
-# ----------------------------------------------
-# Feature 2:
-# Approximate annual interest amount
-#
-# Example:
-#
-# loan = 10,000
-# rate = 10%
-#
-# interest_burden = 1,000
-# ----------------------------------------------
 
 df["interest_burden"] = (
     df["loan_amnt"]
@@ -150,30 +136,18 @@ df["interest_burden"] = (
 )
 
 
-# ----------------------------------------------
-# Feature 3:
-# Credit history relative to age
-#
-# Example:
-#
-# age = 40
-# credit history = 10 years
-#
-# ratio = 10 / 40 = 0.25
-# ----------------------------------------------
-
 df["credit_history_ratio"] = (
     df["cred_hist_length"]
     / df["customer_age"]
 )
 
 
-# Replace infinity caused by division by zero
 engineered_features = [
     "loan_to_income",
     "interest_burden",
     "credit_history_ratio"
 ]
+
 
 for feature in engineered_features:
 
@@ -190,7 +164,7 @@ for feature in engineered_features:
 
 
 # ==================================================
-# 6. FEATURES AND TARGET
+# FEATURES / TARGET
 # ==================================================
 
 X = df.drop(
@@ -205,7 +179,7 @@ y = df[
 
 
 # ==================================================
-# 7. DEFINE NUMERIC FEATURES
+# FEATURE GROUPS
 # ==================================================
 
 numeric_features = [
@@ -216,17 +190,11 @@ numeric_features = [
     "loan_int_rate",
     "term_years",
     "cred_hist_length",
-
-    # Engineered features
     "loan_to_income",
     "interest_burden",
     "credit_history_ratio"
 ]
 
-
-# ==================================================
-# 8. DEFINE CATEGORICAL FEATURES
-# ==================================================
 
 categorical_features = [
     "home_ownership",
@@ -236,7 +204,7 @@ categorical_features = [
 
 
 # ==================================================
-# 9. NUMERIC PREPROCESSING
+# PREPROCESSING
 # ==================================================
 
 numeric_pipeline = Pipeline([
@@ -248,10 +216,6 @@ numeric_pipeline = Pipeline([
     )
 ])
 
-
-# ==================================================
-# 10. CATEGORICAL PREPROCESSING
-# ==================================================
 
 categorical_pipeline = Pipeline([
     (
@@ -270,10 +234,6 @@ categorical_pipeline = Pipeline([
 ])
 
 
-# ==================================================
-# 11. COMBINE PREPROCESSING
-# ==================================================
-
 preprocessor = ColumnTransformer([
     (
         "numeric",
@@ -290,93 +250,163 @@ preprocessor = ColumnTransformer([
 
 
 # ==================================================
-# 12. RANDOM FOREST
+# FUNCTION TO CREATE RANDOM FOREST PIPELINE
 # ==================================================
 
-classifier = RandomForestClassifier(
-    n_estimators=300,
-    random_state=42,
-    class_weight="balanced",
-    n_jobs=-1
-)
+def create_base_model():
 
-
-# ==================================================
-# 13. FULL PIPELINE
-# ==================================================
-
-model = Pipeline([
-    (
-        "preprocessor",
-        preprocessor
-    ),
-
-    (
-        "classifier",
-        classifier
+    classifier = RandomForestClassifier(
+        n_estimators=300,
+        random_state=42,
+        class_weight="balanced",
+        n_jobs=-1
     )
-])
+
+    return Pipeline([
+        (
+            "preprocessor",
+            preprocessor
+        ),
+
+        (
+            "classifier",
+            classifier
+        )
+    ])
 
 
 # ==================================================
-# 14. TRAIN FINAL MODEL
+# TRAIN BASE MODEL
+#
+# This model will mainly be used for SHAP.
 # ==================================================
 
 print(
-    "\nTraining final Random Forest model..."
+    "\nTraining base Random Forest..."
+)
+
+base_model = create_base_model()
+
+base_model.fit(
+    X,
+    y
 )
 
 print(
-    "Engineered features:"
+    "Base Random Forest training complete."
 )
 
-for feature in engineered_features:
-    print(
-        f" - {feature}"
-    )
+
+# ==================================================
+# TRAIN CALIBRATED MODEL
+#
+# Uses 5-fold calibration internally.
+# ==================================================
+
+print(
+    "\nTraining calibrated Random Forest..."
+)
+
+calibration_base_model = create_base_model()
 
 
-model.fit(
+calibrated_model = CalibratedClassifierCV(
+    estimator=calibration_base_model,
+    method="sigmoid",
+    cv=5
+)
+
+
+calibrated_model.fit(
     X,
     y
 )
 
 
 print(
-    "\nTraining complete."
+    "Calibrated model training complete."
 )
 
 
 # ==================================================
-# 15. SAVE MODEL
+# SAVE MODELS
 # ==================================================
 
 joblib.dump(
-    model,
-    MODEL_PATH
+    base_model,
+    BASE_MODEL_PATH
+)
+
+
+joblib.dump(
+    calibrated_model,
+    CALIBRATED_MODEL_PATH
+)
+
+
+# ==================================================
+# OUTPUT
+# ==================================================
+
+print(
+    "\n================================"
+)
+
+print(
+    "MODELS SAVED"
+)
+
+print(
+    "================================"
 )
 
 
 print(
-    f"\nModel saved to:"
+    "\nBase Random Forest:"
 )
 
 print(
-    MODEL_PATH
+    BASE_MODEL_PATH
 )
 
 
 print(
-    "\nFinal training rows:",
+    "\nCalibrated Random Forest:"
+)
+
+print(
+    CALIBRATED_MODEL_PATH
+)
+
+
+print(
+    "\nTraining rows:",
     len(X)
 )
 
+
 print(
-    "Number of input columns:",
+    "Input columns:",
     len(X.columns)
 )
 
+
 print(
-    "\nModel classes:",
-    model["classifier"].classes_
+    "\nClasses:"
 )
+
+print(
+    calibrated_model.classes_
+)
+
+
+print(
+    "\nEngineered features:"
+)
+
+for feature in engineered_features:
+
+    print(
+        "-",
+        feature
+    )

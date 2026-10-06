@@ -12,21 +12,40 @@ import shap
 
 BASE_DIR = Path(__file__).resolve().parent
 
-MODEL_PATH = (
+
+BASE_MODEL_PATH = (
     BASE_DIR
     / "model"
-    / "loan_default_model.joblib"
+    / "base_random_forest.joblib"
+)
+
+
+CALIBRATED_MODEL_PATH = (
+    BASE_DIR
+    / "model"
+    / "calibrated_loan_default_model.joblib"
 )
 
 
 # ==================================================
-# LOAD MODEL
+# DECISION THRESHOLD
 # ==================================================
 
-model = joblib.load(
-    MODEL_PATH
+DECISION_THRESHOLD = 0.56
+
+
+# ==================================================
+# LOAD MODELS
+# ==================================================
+
+base_model = joblib.load(
+    BASE_MODEL_PATH
 )
 
+
+calibrated_model = joblib.load(
+    CALIBRATED_MODEL_PATH
+)
 
 # ==================================================
 # VALIDATION FUNCTIONS
@@ -373,24 +392,27 @@ applicant = pd.DataFrame([
 # PREDICTION
 # ==================================================
 
-prediction = model.predict(
-    applicant
-)[0]
+# ==================================================
+# CALIBRATED PROBABILITY
+# ==================================================
 
-
-probabilities = model.predict_proba(
-    applicant
-)[0]
+probabilities = (
+    calibrated_model
+    .predict_proba(
+        applicant
+    )[0]
+)
 
 
 classes = list(
-    model.classes_
+    calibrated_model.classes_
 )
 
 
 default_index = classes.index(
     "DEFAULT"
 )
+
 
 no_default_index = classes.index(
     "NO DEFAULT"
@@ -401,15 +423,28 @@ default_probability = probabilities[
     default_index
 ]
 
+
 no_default_probability = probabilities[
     no_default_index
 ]
 
 
 # ==================================================
-# RESULTS
+# APPLY OUR CHOSEN THRESHOLD
 # ==================================================
 
+if default_probability >= DECISION_THRESHOLD:
+
+    prediction = "DEFAULT"
+
+else:
+
+    prediction = "NO DEFAULT"
+
+
+# ==================================================
+# RESULTS
+# ==================================================
 print(
     "\n================================"
 )
@@ -424,21 +459,27 @@ print(
 
 
 print(
-    f"Probability of DEFAULT: "
+    f"Calibrated probability of DEFAULT: "
     f"{default_probability * 100:.2f}%"
 )
 
 
 print(
-    f"Probability of NO DEFAULT: "
+    f"Calibrated probability of NO DEFAULT: "
     f"{no_default_probability * 100:.2f}%"
 )
 
 
 print(
-    f"\nFinal Prediction: {prediction}"
+    f"\nDecision threshold: "
+    f"{DECISION_THRESHOLD * 100:.0f}%"
 )
 
+
+print(
+    f"\nFinal Prediction: "
+    f"{prediction}"
+)
 
 # ==================================================
 # SHOW ENGINEERED VALUES
@@ -481,11 +522,11 @@ print(
 
 try:
 
-    preprocessor = model[
+    preprocessor = base_model[
         "preprocessor"
     ]
 
-    classifier = model[
+    classifier = base_model[
         "classifier"
     ]
 
@@ -889,30 +930,27 @@ print(
 
 
 print(
-    f"\nEstimated probability of default: "
+    f"\nCalibrated estimated probability "
+    f"of default: "
     f"{default_probability * 100:.2f}%"
 )
 
-
-if default_probability >= 0.50:
+if default_probability >= DECISION_THRESHOLD:
 
     print(
-        "\nBecause this probability is at or "
-        "above the current 50% classification "
-        "threshold, the final prediction is DEFAULT."
+        f"\nBecause the calibrated probability "
+        f"of default is at or above the "
+        f"{DECISION_THRESHOLD * 100:.0f}% "
+        f"decision threshold, "
+        f"the final prediction is DEFAULT."
     )
 
 else:
 
     print(
-        "\nBecause this probability is below "
-        "the current 50% classification threshold, "
-        "the final prediction is NO DEFAULT."
+        f"\nBecause the calibrated probability "
+        f"of default is below the "
+        f"{DECISION_THRESHOLD * 100:.0f}% "
+        f"decision threshold, "
+        f"the final prediction is NO DEFAULT."
     )
-
-
-print(
-    "\nNote: SHAP explains how this model "
-    "used the inputs. It does not prove that "
-    "any feature causes loan default."
-)
