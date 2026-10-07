@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import json
 import joblib
 import numpy as np
 import pandas as pd
@@ -19,6 +20,12 @@ BASE_MODEL_PATH = (
     / "base_random_forest.joblib"
 )
 
+METADATA_PATH = (
+    BASE_DIR
+    / "model"
+    / "model_metadata.json"
+)
+
 
 CALIBRATED_MODEL_PATH = (
     BASE_DIR
@@ -30,8 +37,19 @@ CALIBRATED_MODEL_PATH = (
 # ==================================================
 # DECISION THRESHOLD
 # ==================================================
+with open(
+    METADATA_PATH,
+    "r"
+) as metadata_file:
 
-DECISION_THRESHOLD = 0.56
+    metadata = json.load(
+        metadata_file
+    )
+
+
+DECISION_THRESHOLD = metadata[
+    "decision_threshold"
+]
 
 
 # ==================================================
@@ -183,6 +201,33 @@ print(
 
 print(
     "-----------------------"
+)
+print(
+    "\nModel information"
+)
+
+print(
+    "-----------------"
+)
+
+print(
+    "Version:",
+    metadata["model_version"]
+)
+
+print(
+    "Algorithm:",
+    metadata["algorithm"]
+)
+
+print(
+    "Calibration:",
+    metadata["calibration_method"]
+)
+
+print(
+    "Decision threshold:",
+    f"{metadata['decision_threshold'] * 100:.0f}%"
 )
 
 

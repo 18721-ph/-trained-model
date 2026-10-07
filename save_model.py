@@ -1,4 +1,6 @@
 from pathlib import Path
+from datetime import datetime
+import json
 
 import joblib
 import numpy as np
@@ -37,6 +39,11 @@ BASE_MODEL_PATH = (
 CALIBRATED_MODEL_PATH = (
     MODEL_DIR
     / "calibrated_loan_default_model.joblib"
+)
+
+METADATA_PATH = (
+    MODEL_DIR
+    / "model_metadata.json"
 )
 
 
@@ -277,8 +284,6 @@ def create_base_model():
 
 # ==================================================
 # TRAIN BASE MODEL
-#
-# This model will mainly be used for SHAP.
 # ==================================================
 
 print(
@@ -299,8 +304,6 @@ print(
 
 # ==================================================
 # TRAIN CALIBRATED MODEL
-#
-# Uses 5-fold calibration internally.
 # ==================================================
 
 print(
@@ -345,6 +348,96 @@ joblib.dump(
 
 
 # ==================================================
+# MODEL METADATA
+# ==================================================
+
+MODEL_VERSION = "1.0"
+
+DECISION_THRESHOLD = 0.56
+
+
+metadata = {
+
+    "model_version":
+        MODEL_VERSION,
+
+    "training_date":
+        datetime.now().isoformat(),
+
+    "algorithm":
+        "RandomForestClassifier",
+
+    "calibration_method":
+        "sigmoid",
+
+    "calibration_folds":
+        5,
+
+    "decision_threshold":
+        DECISION_THRESHOLD,
+
+    "training_rows":
+        len(X),
+
+    "input_columns":
+        list(X.columns),
+
+    "numeric_features":
+        numeric_features,
+
+    "categorical_features":
+        categorical_features,
+
+    "engineered_features":
+        engineered_features,
+
+    "excluded_features": [
+        "customer_id",
+        "historical_default"
+    ],
+
+    "target":
+        "Current_loan_status",
+
+    "target_classes":
+        list(
+            calibrated_model.classes_
+        ),
+
+    "random_forest_parameters": {
+
+        "n_estimators":
+            300,
+
+        "random_state":
+            42,
+
+        "class_weight":
+            "balanced",
+
+        "n_jobs":
+            -1
+    }
+}
+
+
+# ==================================================
+# SAVE METADATA
+# ==================================================
+
+with open(
+    METADATA_PATH,
+    "w"
+) as metadata_file:
+
+    json.dump(
+        metadata,
+        metadata_file,
+        indent=4
+    )
+
+
+# ==================================================
 # OUTPUT
 # ==================================================
 
@@ -380,6 +473,15 @@ print(
 
 
 print(
+    "\nModel metadata:"
+)
+
+print(
+    METADATA_PATH
+)
+
+
+print(
     "\nTraining rows:",
     len(X)
 )
@@ -397,6 +499,15 @@ print(
 
 print(
     calibrated_model.classes_
+)
+
+
+print(
+    "\nDecision threshold:"
+)
+
+print(
+    f"{DECISION_THRESHOLD * 100:.0f}%"
 )
 
 

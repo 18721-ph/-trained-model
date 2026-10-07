@@ -1,0 +1,61 @@
+{
+    "model_version": "1.0",
+    "training_date": "2026-10-07T17:44:08.706037",
+    "algorithm": "RandomForestClassifier",
+    "calibration_method": "sigmoid",
+    "calibration_folds": 5,
+    "decision_threshold": 0.56,
+    "training_rows": 32582,
+    "input_columns": [
+        "customer_age",
+        "customer_income",
+        "home_ownership",
+        "employment_duration",
+        "loan_intent",
+        "loan_grade",
+        "loan_amnt",
+        "loan_int_rate",
+        "term_years",
+        "cred_hist_length",
+        "loan_to_income",
+        "interest_burden",
+        "credit_history_ratio"
+    ],
+    "numeric_features": [
+        "customer_age",
+        "customer_income",
+        "employment_duration",
+        "loan_amnt",
+        "loan_int_rate",
+        "term_years",
+        "cred_hist_length",
+        "loan_to_income",
+        "interest_burden",
+        "credit_history_ratio"
+    ],
+    "categorical_features": [
+        "home_ownership",
+        "loan_intent",
+        "loan_grade"
+    ],
+    "engineered_features": [
+        "loan_to_income",
+        "interest_burden",
+        "credit_history_ratio"
+    ],
+    "excluded_features": [
+        "customer_id",
+        "historical_default"
+    ],
+    "target": "Current_loan_status",
+    "target_classes": [
+        "DEFAULT",
+        "NO DEFAULT"
+    ],
+    "random_forest_parameters": {
+        "n_estimators": 300,
+        "random_state": 42,
+        "class_weight": "balanced",
+        "n_jobs": -1
+    }
+}
