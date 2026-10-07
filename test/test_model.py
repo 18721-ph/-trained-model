@@ -5,7 +5,7 @@ import json
 import pandas as pd
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 MODEL_DIR = (
     BASE_DIR
