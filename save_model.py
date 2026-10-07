@@ -12,7 +12,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.calibration import CalibratedClassifierCV
-
+from src.features import add_engineered_features    
 
 # ==================================================
 # PATHS
@@ -128,25 +128,7 @@ df["loan_amnt"] = pd.to_numeric(
 # FEATURE ENGINEERING
 # ==================================================
 
-df["loan_to_income"] = (
-    df["loan_amnt"]
-    / df["customer_income"]
-)
-
-
-df["interest_burden"] = (
-    df["loan_amnt"]
-    * (
-        df["loan_int_rate"]
-        / 100
-    )
-)
-
-
-df["credit_history_ratio"] = (
-    df["cred_hist_length"]
-    / df["customer_age"]
-)
+df = add_engineered_features(df)
 
 
 engineered_features = [
@@ -156,18 +138,6 @@ engineered_features = [
 ]
 
 
-for feature in engineered_features:
-
-    df[feature] = (
-        df[feature]
-        .replace(
-            [
-                np.inf,
-                -np.inf
-            ],
-            np.nan
-        )
-    )
 
 
 # ==================================================

@@ -1,6 +1,6 @@
 {
     "model_version": "1.0",
-    "training_date": "2026-10-07T17:44:08.706037",
+    "training_date": "2026-10-07T21:16:52.587956",
     "algorithm": "RandomForestClassifier",
     "calibration_method": "sigmoid",
     "calibration_folds": 5,
