@@ -1,10 +1,12 @@
 from pathlib import Path
-
 import json
+
 import joblib
 import numpy as np
 import pandas as pd
 import shap
+
+from src.features import add_engineered_features
 
 
 # ==================================================
@@ -13,30 +15,44 @@ import shap
 
 BASE_DIR = Path(__file__).resolve().parent
 
-
-BASE_MODEL_PATH = (
+MODEL_DIR = (
     BASE_DIR
     / "model"
+)
+
+BASE_MODEL_PATH = (
+    MODEL_DIR
     / "base_random_forest.joblib"
 )
 
+CALIBRATED_MODEL_PATH = (
+    MODEL_DIR
+    / "calibrated_loan_default_model.joblib"
+)
+
 METADATA_PATH = (
-    BASE_DIR
-    / "model"
+    MODEL_DIR
     / "model_metadata.json"
 )
 
 
-CALIBRATED_MODEL_PATH = (
-    BASE_DIR
-    / "model"
-    / "calibrated_loan_default_model.joblib"
+# ==================================================
+# LOAD MODELS
+# ==================================================
+
+base_model = joblib.load(
+    BASE_MODEL_PATH
+)
+
+calibrated_model = joblib.load(
+    CALIBRATED_MODEL_PATH
 )
 
 
 # ==================================================
-# DECISION THRESHOLD
+# LOAD METADATA
 # ==================================================
+
 with open(
     METADATA_PATH,
     "r"
@@ -53,19 +69,6 @@ DECISION_THRESHOLD = metadata[
 
 
 # ==================================================
-# LOAD MODELS
-# ==================================================
-
-base_model = joblib.load(
-    BASE_MODEL_PATH
-)
-
-
-calibrated_model = joblib.load(
-    CALIBRATED_MODEL_PATH
-)
-
-# ==================================================
 # VALIDATION FUNCTIONS
 # ==================================================
 
@@ -74,6 +77,7 @@ def get_int(
     min_value=None,
     max_value=None
 ):
+
     while True:
 
         try:
@@ -94,6 +98,7 @@ def get_int(
             min_value is not None
             and value < min_value
         ):
+
             print(
                 f"Value must be at least {min_value}."
             )
@@ -105,6 +110,7 @@ def get_int(
             max_value is not None
             and value > max_value
         ):
+
             print(
                 f"Value must not exceed {max_value}."
             )
@@ -120,6 +126,7 @@ def get_float(
     min_value=None,
     max_value=None
 ):
+
     while True:
 
         try:
@@ -140,6 +147,7 @@ def get_float(
             min_value is not None
             and value < min_value
         ):
+
             print(
                 f"Value must be at least {min_value}."
             )
@@ -151,6 +159,7 @@ def get_float(
             max_value is not None
             and value > max_value
         ):
+
             print(
                 f"Value must not exceed {max_value}."
             )
@@ -192,7 +201,7 @@ def get_choice(
 
 
 # ==================================================
-# START
+# MODEL INFORMATION
 # ==================================================
 
 print(
@@ -202,6 +211,8 @@ print(
 print(
     "-----------------------"
 )
+
+
 print(
     "\nModel information"
 )
@@ -227,7 +238,7 @@ print(
 
 print(
     "Decision threshold:",
-    f"{metadata['decision_threshold'] * 100:.0f}%"
+    f"{DECISION_THRESHOLD * 100:.0f}%"
 )
 
 
@@ -334,10 +345,6 @@ while employment_duration > (
         "with customer age."
     )
 
-    print(
-        "Please enter the employment duration again."
-    )
-
     employment_duration = get_float(
         "Employment duration (years): ",
         min_value=0,
@@ -349,7 +356,7 @@ while cred_hist_length > customer_age:
 
     print(
         "\nCredit history cannot be longer "
-        "than the customer's age."
+        "than customer age."
     )
 
     cred_hist_length = get_int(
@@ -360,32 +367,7 @@ while cred_hist_length > customer_age:
 
 
 # ==================================================
-# FEATURE ENGINEERING
-# ==================================================
-
-loan_to_income = (
-    loan_amnt
-    / customer_income
-)
-
-
-interest_burden = (
-    loan_amnt
-    * (
-        loan_int_rate
-        / 100
-    )
-)
-
-
-credit_history_ratio = (
-    cred_hist_length
-    / customer_age
-)
-
-
-# ==================================================
-# CREATE DATAFRAME
+# CREATE RAW APPLICANT DATAFRAME
 # ==================================================
 
 applicant = pd.DataFrame([
@@ -418,24 +400,35 @@ applicant = pd.DataFrame([
             term_years,
 
         "cred_hist_length":
-            cred_hist_length,
-
-        # Engineered features
-        "loan_to_income":
-            loan_to_income,
-
-        "interest_burden":
-            interest_burden,
-
-        "credit_history_ratio":
-            credit_history_ratio
+            cred_hist_length
     }
 ])
 
 
 # ==================================================
-# PREDICTION
+# FEATURE ENGINEERING
 # ==================================================
+
+applicant = add_engineered_features(
+    applicant
+)
+
+
+loan_to_income = applicant.loc[
+    0,
+    "loan_to_income"
+]
+
+interest_burden = applicant.loc[
+    0,
+    "interest_burden"
+]
+
+credit_history_ratio = applicant.loc[
+    0,
+    "credit_history_ratio"
+]
+
 
 # ==================================================
 # CALIBRATED PROBABILITY
@@ -458,7 +451,6 @@ default_index = classes.index(
     "DEFAULT"
 )
 
-
 no_default_index = classes.index(
     "NO DEFAULT"
 )
@@ -468,14 +460,13 @@ default_probability = probabilities[
     default_index
 ]
 
-
 no_default_probability = probabilities[
     no_default_index
 ]
 
 
 # ==================================================
-# APPLY OUR CHOSEN THRESHOLD
+# APPLY DECISION THRESHOLD
 # ==================================================
 
 if default_probability >= DECISION_THRESHOLD:
@@ -488,8 +479,9 @@ else:
 
 
 # ==================================================
-# RESULTS
+# PREDICTION RESULT
 # ==================================================
+
 print(
     "\n================================"
 )
@@ -526,8 +518,9 @@ print(
     f"{prediction}"
 )
 
+
 # ==================================================
-# SHOW ENGINEERED VALUES
+# DERIVED FINANCIAL FEATURES
 # ==================================================
 
 print(
@@ -583,11 +576,11 @@ try:
     )
 
 
-    # Convert sparse matrix to dense if necessary
     if hasattr(
         transformed_applicant,
         "toarray"
     ):
+
         transformed_applicant = (
             transformed_applicant
             .toarray()
@@ -599,10 +592,6 @@ try:
         .get_feature_names_out()
     )
 
-
-    # ----------------------------------------------
-    # Create Tree SHAP explainer
-    # ----------------------------------------------
 
     explainer = shap.TreeExplainer(
         classifier
@@ -616,18 +605,28 @@ try:
     )
 
 
-    # ----------------------------------------------
-    # Handle different SHAP versions
-    # ----------------------------------------------
+    # ==================================================
+    # HANDLE SHAP OUTPUT FORMAT
+    # ==================================================
 
     if isinstance(
         shap_values,
         list
     ):
 
+        base_classes = list(
+            classifier.classes_
+        )
+
+        base_default_index = (
+            base_classes.index(
+                "DEFAULT"
+            )
+        )
+
         local_values = (
             shap_values[
-                default_index
+                base_default_index
             ][0]
         )
 
@@ -637,6 +636,16 @@ try:
             shap_values
         )
 
+        base_classes = list(
+            classifier.classes_
+        )
+
+        base_default_index = (
+            base_classes.index(
+                "DEFAULT"
+            )
+        )
+
 
         if shap_array.ndim == 3:
 
@@ -644,7 +653,7 @@ try:
                 shap_array[
                     0,
                     :,
-                    default_index
+                    base_default_index
                 ]
             )
 
@@ -662,7 +671,7 @@ try:
 
 
     # ==================================================
-    # GROUP ONE-HOT FEATURES BACK INTO ORIGINAL FEATURES
+    # GROUP TRANSFORMED FEATURES
     # ==================================================
 
     original_features = [
@@ -710,10 +719,6 @@ try:
         )
 
 
-        matched = False
-
-
-        # Exact numeric feature
         if clean_name in grouped_impacts:
 
             grouped_impacts[
@@ -722,29 +727,26 @@ try:
                 shap_value
             )
 
-            matched = True
+            continue
 
 
-        # One-hot categorical feature
-        if not matched:
+        for original in [
+            "home_ownership",
+            "loan_intent",
+            "loan_grade"
+        ]:
 
-            for original in [
-                "home_ownership",
-                "loan_intent",
-                "loan_grade"
-            ]:
+            if clean_name.startswith(
+                original + "_"
+            ):
 
-                if clean_name.startswith(
-                    original + "_"
-                ):
+                grouped_impacts[
+                    original
+                ] += float(
+                    shap_value
+                )
 
-                    grouped_impacts[
-                        original
-                    ] += float(
-                        shap_value
-                    )
-
-                    break
+                break
 
 
     # ==================================================
@@ -838,7 +840,7 @@ try:
 
 
     # ==================================================
-    # SORT BY IMPORTANCE FOR THIS APPLICANT
+    # SORT LOCAL IMPACTS
     # ==================================================
 
     sorted_impacts = sorted(
@@ -867,7 +869,7 @@ try:
 
 
     # ==================================================
-    # PRINT EXPLANATION
+    # PRINT SHAP EXPLANATION
     # ==================================================
 
     print(
@@ -944,7 +946,7 @@ except Exception as error:
 
 
 # ==================================================
-# FINAL EXPLANATION
+# FINAL MODEL EXPLANATION
 # ==================================================
 
 print(
@@ -980,6 +982,7 @@ print(
     f"{default_probability * 100:.2f}%"
 )
 
+
 if default_probability >= DECISION_THRESHOLD:
 
     print(
@@ -999,3 +1002,11 @@ else:
         f"decision threshold, "
         f"the final prediction is NO DEFAULT."
     )
+
+
+print(
+    "\nNote: SHAP explains how the base "
+    "Random Forest used the input features. "
+    "It does not mean any individual feature "
+    "causes default."
+)
