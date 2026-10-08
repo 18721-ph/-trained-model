@@ -7,7 +7,7 @@ import pandas as pd
 import shap
 
 from src.features import add_engineered_features
-
+from src.prediction import classify_default
 
 # ==================================================
 # PATHS
@@ -468,14 +468,10 @@ no_default_probability = probabilities[
 # ==================================================
 # APPLY DECISION THRESHOLD
 # ==================================================
-
-if default_probability >= DECISION_THRESHOLD:
-
-    prediction = "DEFAULT"
-
-else:
-
-    prediction = "NO DEFAULT"
+prediction = classify_default(
+    default_probability,
+    DECISION_THRESHOLD
+)
 
 
 # ==================================================
