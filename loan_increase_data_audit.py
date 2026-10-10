@@ -246,7 +246,7 @@ if not found_required_target:
     print(
         "\nThe current dataset does not contain "
         "a clear historical target showing how "
-        "much additional credit was approved."
+        "much additional credit was approved or should be approved."
     )
 
     print(
