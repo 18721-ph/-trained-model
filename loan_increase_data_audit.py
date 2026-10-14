@@ -4,7 +4,7 @@ import pandas as pd
 
 
 # ==================================================
-# PATHS
+# PATHS/MANJIA
 # ==================================================
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -26,7 +26,7 @@ df = pd.read_csv(
 
 
 # ==================================================
-# BASIC INFORMATION
+# BASIC INFORMATION.
 # ==================================================
 
 print(
@@ -236,7 +236,7 @@ for column in required_targets:
         found_required_target = True
 
         print(
-            "Potential supervised target found:",
+            "Potential supervised target found :",
             column
         )
 
