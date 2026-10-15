@@ -61,3 +61,4 @@ Run these from the project root:
 ```
 
 The experiments compare models, evaluate a Random Forest, explore classification thresholds, and tune hyperparameters. Use them to evaluate performance before fitting the final model on all data. Correlation analysis uses the separate `data/cleaned_loan_data.csv` dataset; the training and experiment scripts use `data/loan_data.csv`.
+the model predicts if a borrower will default
