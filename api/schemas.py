@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ApplicantRequest(BaseModel):
@@ -61,6 +61,36 @@ class ApplicantRequest(BaseModel):
         ge=0,
         le=80
     )
+
+
+    @model_validator(mode="after")
+    def validate_relationships(self):
+
+        max_possible_employment = (
+            self.customer_age - 14
+        )
+
+        if (
+            self.employment_duration
+            > max_possible_employment
+        ):
+            raise ValueError(
+                "Employment duration is not "
+                "realistic for the applicant's age."
+            )
+
+
+        if (
+            self.cred_hist_length
+            > self.customer_age
+        ):
+            raise ValueError(
+                "Credit history length cannot "
+                "exceed customer age."
+            )
+
+
+        return self
 
 
 class PredictionResponse(BaseModel):
