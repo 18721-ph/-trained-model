@@ -109,7 +109,7 @@ def test_invalid_home_ownership_is_rejected():
 
     assert response.status_code == 422
 
-    def test_unrealistic_employment_duration_is_rejected():
+def test_unrealistic_employment_duration_is_rejected():
 
     applicant = {
         "customer_age": 20,
