@@ -85,7 +85,7 @@ def test_invalid_age_is_rejected():
     )
 
     assert response.status_code == 422
-
+    
 
 def test_invalid_home_ownership_is_rejected():
 
@@ -100,6 +100,51 @@ def test_invalid_home_ownership_is_rejected():
         "loan_int_rate": 8,
         "term_years": 2,
         "cred_hist_length": 3
+    }
+
+    response = client.post(
+        "/predict",
+        json=applicant
+    )
+
+    assert response.status_code == 422
+
+def test_unrealistic_employment_duration_is_rejected():
+
+    applicant = {
+        "customer_age": 20,
+        "customer_income": 50000,
+        "home_ownership": "RENT",
+        "employment_duration": 15,
+        "loan_intent": "PERSONAL",
+        "loan_grade": "B",
+        "loan_amnt": 10000,
+        "loan_int_rate": 8,
+        "term_years": 2,
+        "cred_hist_length": 3
+    }
+
+    response = client.post(
+        "/predict",
+        json=applicant
+    )
+
+    assert response.status_code == 422
+
+
+def test_credit_history_longer_than_age_is_rejected():
+
+    applicant = {
+        "customer_age": 25,
+        "customer_income": 50000,
+        "home_ownership": "RENT",
+        "employment_duration": 5,
+        "loan_intent": "PERSONAL",
+        "loan_grade": "B",
+        "loan_amnt": 10000,
+        "loan_int_rate": 8,
+        "term_years": 2,
+        "cred_hist_length": 30
     }
 
     response = client.post(
