@@ -1,0 +1,13 @@
+[
+  "test/test_model.py::test_feature_engineering",
+  "test/test_model.py::test_metadata_loads",
+  "test/test_model.py::test_model_files_exist",
+  "test/test_model.py::test_models_load",
+  "test/test_model.py::test_prediction_probability",
+  "test/test_model.py::test_threshold_valid",
+  "test/test_prediction.py::test_low_probability",
+  "test/test_prediction.py::test_probability_above_threshold",
+  "test/test_prediction.py::test_probability_below_threshold",
+  "test/test_prediction.py::test_probability_equal_to_threshold",
+  "test/test_prediction.py::test_zero_income_does_not_create_infinity"
+]
