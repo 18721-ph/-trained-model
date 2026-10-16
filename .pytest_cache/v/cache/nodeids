@@ -1,4 +1,8 @@
 [
+  "test/test_api.py::test_invalid_age_is_rejected",
+  "test/test_api.py::test_invalid_home_ownership_is_rejected",
+  "test/test_api.py::test_predict_endpoint",
+  "test/test_api.py::test_root_endpoint",
   "test/test_model.py::test_feature_engineering",
   "test/test_model.py::test_metadata_loads",
   "test/test_model.py::test_model_files_exist",
