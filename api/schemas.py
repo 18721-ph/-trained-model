@@ -1,6 +1,10 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    model_validator
+)
 
 
 class ApplicantRequest(BaseModel):
@@ -93,6 +97,13 @@ class ApplicantRequest(BaseModel):
         return self
 
 
+class ExplanationFactor(BaseModel):
+
+    feature: str
+
+    impact: float
+
+
 class PredictionResponse(BaseModel):
 
     default_probability: float
@@ -104,4 +115,12 @@ class PredictionResponse(BaseModel):
     prediction: Literal[
         "DEFAULT",
         "NO DEFAULT"
+    ]
+
+    top_risk_factors: list[
+        ExplanationFactor
+    ]
+
+    top_protective_factors: list[
+        ExplanationFactor
     ]
