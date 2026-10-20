@@ -3,7 +3,19 @@ export function Shell({ children, page, onNavigate }: { children: ReactNode; pag
   return <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
     <a className="skip-link" href="#workspace">Skip to workspace</a>
     <aside className="flex flex-col bg-slate-900 px-5 py-7 text-slate-200 lg:sticky lg:top-0 lg:h-screen">
-      <div className="mb-9 flex items-center gap-3"><span className="grid size-10 place-items-center rounded-lg bg-teal-700 text-xl font-bold text-white" aria-hidden="true">L</span><div className="font-semibold tracking-wide text-white">LEND / INSIGHT<p className="mt-1 text-xs font-normal text-slate-400">Credit assessment workspace</p></div></div>
+      <div className="mb-7 flex items-center gap-3">
+        <img
+          src="/ldrp-mark.png"
+          alt="LDRP — Loan Default Risk Prediction"
+          width={48}
+          height={48}
+          className="block size-12 shrink-0 rounded-lg bg-white object-contain p-1"
+        />
+        <div>
+          <p className="text-base font-semibold tracking-wide text-white">LDRP</p>
+          <p className="mt-1 text-xs text-slate-400">Credit assessment workspace</p>
+        </div>
+      </div>
       <p className="mb-3 text-[10px] font-bold tracking-[.18em] text-slate-400">WORKSPACE</p>
       <nav aria-label="Main navigation" className="flex flex-wrap gap-2 lg:flex-col">
         <button className="nav-item" disabled>Dashboard <span className="text-xs">Planned</span></button>
