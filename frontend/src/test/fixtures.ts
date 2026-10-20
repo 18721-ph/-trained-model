@@ -1,0 +1,3 @@
+import type { ApplicantRequest, PredictionResponse } from '../types/prediction'
+export const applicant: ApplicantRequest = { customer_age: 45, customer_income: 50000, home_ownership: 'RENT', employment_duration: 20, loan_intent: 'EDUCATION', loan_grade: 'B', loan_amnt: 20000, loan_int_rate: 4, term_years: 1, cred_hist_length: 9 }
+export const prediction: PredictionResponse = { default_probability: 0.6732, no_default_probability: 0.3268, decision_threshold: 0.56, prediction: 'DEFAULT', top_risk_factors: [{ feature: 'Loan-to-income ratio', impact: 0.3205 }], top_protective_factors: [{ feature: 'Customer age', impact: -0.0828 }] }

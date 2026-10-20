@@ -63,6 +63,12 @@ def test_predict_endpoint():
         "NO DEFAULT"
     ]
 
+    for key in ("top_risk_factors", "top_protective_factors"):
+        assert isinstance(data[key], list)
+        for factor in data[key]:
+            assert isinstance(factor["feature"], str)
+            assert isinstance(factor["impact"], (int, float))
+
 
 def test_invalid_age_is_rejected():
 
@@ -111,7 +117,7 @@ def test_invalid_home_ownership_is_rejected():
 
 def test_unrealistic_employment_duration_is_rejected():
 
-    applicant = {
+    applicant = { 
         "customer_age": 20,
         "customer_income": 50000,
         "home_ownership": "RENT",
