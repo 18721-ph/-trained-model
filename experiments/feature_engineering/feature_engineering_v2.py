@@ -1,3 +1,7 @@
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
 import pandas as pd
 
 from sklearn.model_selection import train_test_split
@@ -21,7 +25,7 @@ from sklearn.metrics import (
 # 1. Load dataset
 # --------------------------------------------------
 
-df = pd.read_csv("data/loan_data.csv")
+df = pd.read_csv(PROJECT_ROOT / "data" / "raw" / "loan_data.csv")
 
 
 # --------------------------------------------------

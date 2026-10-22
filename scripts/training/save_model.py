@@ -1,4 +1,9 @@
 from pathlib import Path
+import sys
+
+# Support direct execution from any working directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from datetime import datetime
 import json
 
@@ -18,11 +23,12 @@ from src.features import add_engineered_features
 # PATHS
 # ==================================================
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 DATA_PATH = (
     BASE_DIR
     / "data"
+    / "raw"
     / "loan_data.csv"
 )
 

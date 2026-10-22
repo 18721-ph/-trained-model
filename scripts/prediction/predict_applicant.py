@@ -1,4 +1,9 @@
 from pathlib import Path
+import sys
+
+# Support direct execution from any working directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import json
 
 import joblib
@@ -13,7 +18,7 @@ from src.prediction import classify_default
 # PATHS
 # ==================================================
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 MODEL_DIR = (
     BASE_DIR

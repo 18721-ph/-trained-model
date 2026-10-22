@@ -24,3 +24,5 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+# Test cache (preserved locally)
+.pytest_cache/

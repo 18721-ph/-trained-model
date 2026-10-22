@@ -2,6 +2,50 @@
 
 An academic decision-support dashboard for lending staff. React submits borrower and loan details to a local FastAPI API. The existing sigmoid-calibrated Random Forest returns probabilities and a 0.56 decision threshold. SHAP explains the underlying base Random Forest; its impacts are neither causal effects nor percentage changes in calibrated probability.
 
+## Project goal and repository structure
+
+This final-year project helps lending institutions assess loan default risk with calibrated probabilities and supporting explanations. Historical experiments are preserved for academic traceability.
+
+```text
+loan model/
+|-- api/                         FastAPI endpoints, validation and inference
+|-- src/                         Shared features and classification
+|-- model/                       Saved models and metadata
+|-- data/raw/loan_data.csv
+|-- data/processed/cleaned_loan_data.csv
+|-- analysis/                    Correlation analysis
+|-- experiments/
+|   |-- model_selection/
+|   |-- calibration/
+|   |-- threshold_tuning/
+|   |-- feature_engineering/
+|   `-- archived_experiments/    Alternate cross-validation version
+|-- scripts/
+|   |-- training/save_model.py
+|   |-- prediction/predict_applicant.py
+|   `-- audits/loan_increase_data_audit.py
+|-- tests/                       Automated backend tests
+|-- frontend/                    Existing React/Vite app and frontend tests
+|-- docs/notes/                  Inventory, move map and organization report
+|-- requirements.txt
+|-- pytest.ini
+`-- README.md
+```
+
+Both datasets and both cross-validation versions are preserved. The archived cross-validation version has an existing undefined `model` reference in its final feature-importance block. No proposal documents or notebooks were found. Virtual environment, IDE files, caches and generated frontend files remain in place.
+
+From the project root, after activating the environment:
+
+```powershell
+python -m scripts.prediction.predict_applicant
+python -m scripts.audits.loan_increase_data_audit
+python analysis/correlation_analysis.py
+```
+
+Scripts resolve file paths from their own location; direct execution by absolute script path also supports other working directories. Experiments train models when executed. `scripts/training/save_model.py` retrains and writes model artifacts when deliberately run; it is not part of setup or verification.
+
+See the [organization report](docs/notes/reorganization.md), [original inventory](docs/notes/inventory-before.json) and [complete move map](docs/notes/moves.json).
+
 ## Architecture
 
 - `frontend/src/components/layout`: shell and navigation.
@@ -13,7 +57,7 @@ An academic decision-support dashboard for lending staff. React submits borrower
 - `api/main.py`, `schemas.py`, `service.py`: HTTP API, authoritative validation, model loading and inference.
 - `src/features.py`, `prediction.py`: existing feature engineering and classification.
 - `model/`: saved base/calibrated models and metadata.
-- `test/`: Python tests; `frontend/src/**/*.test.*`: mocked frontend tests.
+- `tests/`: Python tests; `frontend/src/**/*.test.*`: mocked frontend tests.
 - `frontend/e2e/`: real local browser integration test.
 
 No submissions are persisted or sent to external services. Editing inputs clears the previous result. Dashboard, history and settings are marked as planned. Model information is a static reference to the current metadata, not a live health check.
@@ -23,7 +67,7 @@ No submissions are persisted or sent to external services. Editing inputs clears
 From the project root, use the compatible existing Python environment (verified with Python 3.13):
 
 ```powershell
-python -m venv .venv
+if (-not (Test-Path .venv)) { python -m venv .venv }
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python -m uvicorn api.main:app --reload --host 127.0.0.1 --port 8001
@@ -59,25 +103,25 @@ Open http://localhost:5173 . The fixed Vite port matches the existing API CORS c
 From the project root:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest test/test_prediction.py -v
-.\.venv\Scripts\python.exe -m pytest test/test_model.py -v
-.\.venv\Scripts\python.exe -m pytest test/test_api.py -v
+.\.venv\Scripts\python.exe -m pytest tests/test_prediction.py -v
+.\.venv\Scripts\python.exe -m pytest tests/test_model.py -v
+.\.venv\Scripts\python.exe -m pytest tests/test_api.py -v
 .\.venv\Scripts\python.exe -m pytest --collect-only -q
 .\.venv\Scripts\python.exe -m pytest -v --durations=5
 ```
 
-`pytest.ini` restricts automatic discovery to `test/test_*.py`. Old root and `experiments/` training scripts are preserved and not collected. Saved-model loading and SHAP imports still take several seconds.
+`pytest.ini` restricts automatic discovery to `tests/test_*.py` and adds the project root to the import path. Historical `experiments/` training scripts are preserved and not collected. Saved-model loading and SHAP imports still take several seconds.
 
 From `frontend/`:
 
 ```powershell
 npm.cmd run lint
-npm.cmd run build
+npm.cmd run build -- --emptyOutDir=false
 npm.cmd test
 npm.cmd run test:e2e
 ```
 
-Vitest tests mock the prediction service or fetch and do not require Python. Playwright uses installed Microsoft Edge and starts FastAPI and Vite if they are not running. It submits the known applicant, compares the displayed result with the API response, checks tablet/mobile overflow and saves screenshots in `frontend/test-results/`. The test does not assert an exact probability.
+The build flag preserves existing files in `frontend/dist/` instead of clearing the directory. Vitest tests mock the prediction service or fetch and do not require Python. Playwright uses installed Microsoft Edge and starts FastAPI and Vite if they are not running. It submits the known applicant, compares the displayed result with the API response, checks tablet/mobile overflow and saves screenshots in `frontend/test-results/`. The test does not assert an exact probability.
 
 For a manual check, enter age 45, income 50000, RENT, employment 20 years, credit history 9 years, EDUCATION, grade B, amount 20000, interest 4%, and term 1 year. Click Assess Default Risk. The historical result is approximately 67.65% / DEFAULT; always use the actual API response.
 
