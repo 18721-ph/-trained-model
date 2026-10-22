@@ -2,35 +2,36 @@ from pathlib import Path
 
 import pandas as pd
 
-from sklearn.model_selection import StratifiedKFold, cross_validate
+from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.impute import SimpleImputer
-
-from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 
 from sklearn.metrics import (
+    accuracy_score,
     precision_score,
     recall_score,
     f1_score,
-    make_scorer
+    confusion_matrix,
+    classification_report,
+    roc_auc_score
 )
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 # --------------------------------------------------
 # 1. Load dataset
 # --------------------------------------------------
 
-df = pd.read_csv(PROJECT_ROOT / "data" / "loan_data.csv")
+df = pd.read_csv(PROJECT_ROOT / "data" / "raw" / "loan_data.csv")
 
 
 # --------------------------------------------------
-# 2. Remove rows without target
+# 2. Remove rows without a target
 # --------------------------------------------------
 
 df = df.dropna(
@@ -51,7 +52,7 @@ df = df.drop(
 
 
 # --------------------------------------------------
-# 4. Clean numeric-looking columns
+# 4. Clean numeric-looking text
 # --------------------------------------------------
 
 df["customer_income"] = pd.to_numeric(
@@ -73,7 +74,7 @@ df["loan_amnt"] = pd.to_numeric(
 
 
 # --------------------------------------------------
-# 5. Separate features and target
+# 5. Features and target
 # --------------------------------------------------
 
 X = df.drop(
@@ -83,15 +84,34 @@ X = df.drop(
 y = df["Current_loan_status"]
 
 
-print("Dataset rows:")
+# --------------------------------------------------
+# 6. Train/test split
+# --------------------------------------------------
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.20,
+    random_state=42,
+    stratify=y
+)
+
+
+print("Rows before split:")
 print(len(df))
 
-print("\nTarget distribution:")
-print(y.value_counts())
+print("\nTraining rows:")
+print(len(X_train))
+
+print("\nTesting rows:")
+print(len(X_test))
+
+print("\nTesting target distribution:")
+print(y_test.value_counts())
 
 
 # --------------------------------------------------
-# 6. Feature groups
+# 7. Define feature groups
 # --------------------------------------------------
 
 numeric_features = [
@@ -113,20 +133,20 @@ categorical_features = [
 
 
 # --------------------------------------------------
-# 7. Logistic Regression preprocessing
+# 8. Numeric preprocessing
 # --------------------------------------------------
 
-logistic_numeric_pipeline = Pipeline([
+numeric_pipeline = Pipeline([
     (
         "imputer",
         SimpleImputer(strategy="median")
-    ),
-    (
-        "scaler",
-        StandardScaler()
     )
 ])
 
+
+# --------------------------------------------------
+# 9. Categorical preprocessing
+# --------------------------------------------------
 
 categorical_pipeline = Pipeline([
     (
@@ -135,6 +155,7 @@ categorical_pipeline = Pipeline([
             strategy="most_frequent"
         )
     ),
+
     (
         "encoder",
         OneHotEncoder(
@@ -144,12 +165,17 @@ categorical_pipeline = Pipeline([
 ])
 
 
-logistic_preprocessor = ColumnTransformer([
+# --------------------------------------------------
+# 10. Combine preprocessing
+# --------------------------------------------------
+
+preprocessor = ColumnTransformer([
     (
         "numeric",
-        logistic_numeric_pipeline,
+        numeric_pipeline,
         numeric_features
     ),
+
     (
         "categorical",
         categorical_pipeline,
@@ -159,54 +185,15 @@ logistic_preprocessor = ColumnTransformer([
 
 
 # --------------------------------------------------
-# 8. Random Forest preprocessing
+# 11. Create Random Forest pipeline
 # --------------------------------------------------
 
-forest_numeric_pipeline = Pipeline([
-    (
-        "imputer",
-        SimpleImputer(strategy="median")
-    )
-])
-
-
-forest_preprocessor = ColumnTransformer([
-    (
-        "numeric",
-        forest_numeric_pipeline,
-        numeric_features
-    ),
-    (
-        "categorical",
-        categorical_pipeline,
-        categorical_features
-    )
-])
-
-
-# --------------------------------------------------
-# 9. Models
-# --------------------------------------------------
-
-logistic_model = Pipeline([
+model = Pipeline([
     (
         "preprocessor",
-        logistic_preprocessor
+        preprocessor
     ),
-    (
-        "classifier",
-        LogisticRegression(
-            max_iter=2000
-        )
-    )
-])
 
-
-random_forest_model = Pipeline([
-    (
-        "preprocessor",
-        forest_preprocessor
-    ),
     (
         "classifier",
         RandomForestClassifier(
@@ -220,115 +207,179 @@ random_forest_model = Pipeline([
 
 
 # --------------------------------------------------
-# 10. Cross-validation setup
+# 12. Train model
 # --------------------------------------------------
 
-cv = StratifiedKFold(
-    n_splits=5,
-    shuffle=True,
-    random_state=42
+print("\nTraining Random Forest...")
+
+model.fit(
+    X_train,
+    y_train
 )
 
+print("Training complete.")
 
-scoring = {
-    "accuracy": "accuracy",
 
-    "precision": make_scorer(
-        precision_score,
-        pos_label="DEFAULT"
-    ),
+# --------------------------------------------------
+# 13. Predictions
+# --------------------------------------------------
 
-    "recall": make_scorer(
-        recall_score,
-        pos_label="DEFAULT"
-    ),
+predictions = model.predict(
+    X_test
+)
 
-    "f1": make_scorer(
-        f1_score,
+probabilities = model.predict_proba(
+    X_test
+)
+
+default_index = list(
+    model.classes_
+).index("DEFAULT")
+
+default_probabilities = probabilities[
+    :,
+    default_index
+]
+thresholds = [
+    0.50,
+    0.45,
+    0.40,
+    0.35,
+    0.30
+]
+
+print("\nRANDOM FOREST THRESHOLD COMPARISON")
+
+for threshold in thresholds:
+
+    threshold_predictions = [
+        "DEFAULT"
+        if probability >= threshold
+        else "NO DEFAULT"
+
+        for probability
+        in default_probabilities
+    ]
+
+    precision = precision_score(
+        y_test,
+        threshold_predictions,
         pos_label="DEFAULT"
     )
-}
 
+    recall = recall_score(
+        y_test,
+        threshold_predictions,
+        pos_label="DEFAULT"
+    )
+
+    f1 = f1_score(
+        y_test,
+        threshold_predictions,
+        pos_label="DEFAULT"
+    )
+
+    matrix = confusion_matrix(
+        y_test,
+        threshold_predictions,
+        labels=[
+            "NO DEFAULT",
+            "DEFAULT"
+        ]
+    )
+
+    print(
+        f"\nThreshold: {threshold}"
+    )
+
+    print(
+        f"Precision: {precision:.4f}"
+    )
+
+    print(
+        f"Recall:    {recall:.4f}"
+    )
+
+    print(
+        f"F1 Score:  {f1:.4f}"
+    )
+
+    print(
+        "Confusion Matrix:"
+    )
+
+    print(matrix)
 
 # --------------------------------------------------
-# 11. Cross-validate Logistic Regression
+# 14. Evaluation
 # --------------------------------------------------
 
-print("\nCross-validating Logistic Regression...")
+accuracy = accuracy_score(
+    y_test,
+    predictions
+)
 
-logistic_results = cross_validate(
-    logistic_model,
-    X,
-    y,
-    cv=cv,
-    scoring=scoring,
-    n_jobs=-1
+precision = precision_score(
+    y_test,
+    predictions,
+    pos_label="DEFAULT"
+)
+
+recall = recall_score(
+    y_test,
+    predictions,
+    pos_label="DEFAULT"
+)
+
+f1 = f1_score(
+    y_test,
+    predictions,
+    pos_label="DEFAULT"
+)
+
+roc_auc = roc_auc_score(
+    (y_test == "DEFAULT").astype(int),
+    default_probabilities
 )
 
 
-# --------------------------------------------------
-# 12. Cross-validate Random Forest
-# --------------------------------------------------
+print("\nAccuracy:")
+print(accuracy)
 
-print("\nCross-validating Random Forest...")
+print("\nPrecision:")
+print(precision)
 
-forest_results = cross_validate(
-    random_forest_model,
-    X,
-    y,
-    cv=cv,
-    scoring=scoring,
-    n_jobs=-1
-)
+print("\nRecall:")
+print(recall)
+
+print("\nF1 Score:")
+print(f1)
+
+print("\nROC-AUC:")
+print(roc_auc)
 
 
-# --------------------------------------------------
-# 13. Results
-# --------------------------------------------------
-
-print("\nLOGISTIC REGRESSION")
+print("\nConfusion Matrix:")
 
 print(
-    "Accuracy:",
-    logistic_results["test_accuracy"].mean()
-)
-
-print(
-    "Precision:",
-    logistic_results["test_precision"].mean()
-)
-
-print(
-    "Recall:",
-    logistic_results["test_recall"].mean()
-)
-
-print(
-    "F1:",
-    logistic_results["test_f1"].mean()
+    confusion_matrix(
+        y_test,
+        predictions,
+        labels=[
+            "NO DEFAULT",
+            "DEFAULT"
+        ]
+    )
 )
 
 
-print("\nRANDOM FOREST")
+print("\nClassification Report:")
 
 print(
-    "Accuracy:",
-    forest_results["test_accuracy"].mean()
-)
-
-print(
-    "Precision:",
-    forest_results["test_precision"].mean()
-)
-
-print(
-    "Recall:",
-    forest_results["test_recall"].mean()
-)
-
-print(
-    "F1:",
-    forest_results["test_f1"].mean()
+    classification_report(
+        y_test,
+        predictions
+    )
 )
 # --------------------------------------------------
 # 15. Random Forest feature importance

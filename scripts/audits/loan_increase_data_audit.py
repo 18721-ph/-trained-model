@@ -7,11 +7,12 @@ import pandas as pd
 # PATHS/MANJIA
 # ==================================================
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 DATA_PATH = (
     BASE_DIR
     / "data"
+    / "raw"
     / "loan_data.csv"
 )
 

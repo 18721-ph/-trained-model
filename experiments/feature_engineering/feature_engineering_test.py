@@ -1,12 +1,10 @@
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
 import pandas as pd
 
-from sklearn.model_selection import (
-    train_test_split,
-    RandomizedSearchCV
-)
-
+from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
@@ -18,20 +16,16 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     f1_score,
-    confusion_matrix,
-    classification_report,
-    roc_auc_score
+    roc_auc_score,
+    confusion_matrix
 )
-
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 # --------------------------------------------------
 # 1. Load dataset
 # --------------------------------------------------
 
-df = pd.read_csv(PROJECT_ROOT / "data" / "loan_data.csv")
+df = pd.read_csv(PROJECT_ROOT / "data" / "raw" / "loan_data.csv")
 
 
 # --------------------------------------------------
@@ -44,7 +38,7 @@ df = df.dropna(
 
 
 # --------------------------------------------------
-# 3. Remove ID and suspicious history feature
+# 3. Remove unused / suspicious columns
 # --------------------------------------------------
 
 df = df.drop(
@@ -56,18 +50,13 @@ df = df.drop(
 
 
 # --------------------------------------------------
-# 4. Clean customer_income
+# 4. Clean numeric-looking columns
 # --------------------------------------------------
 
 df["customer_income"] = pd.to_numeric(
     df["customer_income"],
     errors="coerce"
 )
-
-
-# --------------------------------------------------
-# 5. Clean loan amount
-# --------------------------------------------------
 
 df["loan_amnt"] = (
     df["loan_amnt"]
@@ -78,6 +67,23 @@ df["loan_amnt"] = (
 df["loan_amnt"] = pd.to_numeric(
     df["loan_amnt"],
     errors="coerce"
+)
+
+
+# --------------------------------------------------
+# 5. FEATURE ENGINEERING
+# --------------------------------------------------
+
+df["loan_to_income"] = (
+    df["loan_amnt"]
+    / df["customer_income"]
+)
+
+
+# Protect against impossible division results
+df["loan_to_income"] = (
+    df["loan_to_income"]
+    .replace([float("inf"), -float("inf")], pd.NA)
 )
 
 
@@ -105,15 +111,8 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 
-print("Training rows:")
-print(len(X_train))
-
-print("\nTesting rows:")
-print(len(X_test))
-
-
 # --------------------------------------------------
-# 8. Define feature groups
+# 8. Feature groups
 # --------------------------------------------------
 
 numeric_features = [
@@ -123,7 +122,8 @@ numeric_features = [
     "loan_amnt",
     "loan_int_rate",
     "term_years",
-    "cred_hist_length"
+    "cred_hist_length",
+    "loan_to_income"
 ]
 
 
@@ -187,18 +187,7 @@ preprocessor = ColumnTransformer([
 
 
 # --------------------------------------------------
-# 12. Base Random Forest
-# --------------------------------------------------
-
-forest = RandomForestClassifier(
-    random_state=42,
-    class_weight="balanced",
-    n_jobs=-1
-)
-
-
-# --------------------------------------------------
-# 13. Complete pipeline
+# 12. Random Forest model
 # --------------------------------------------------
 
 model = Pipeline([
@@ -209,122 +198,45 @@ model = Pipeline([
 
     (
         "classifier",
-        forest
+        RandomForestClassifier(
+            n_estimators=300,
+            random_state=42,
+            class_weight="balanced",
+            n_jobs=-1
+        )
     )
 ])
 
 
 # --------------------------------------------------
-# 14. Parameters to search
+# 13. Train
 # --------------------------------------------------
 
-parameter_grid = {
+print("Training Random Forest with loan_to_income...")
 
-    "classifier__n_estimators": [
-        200,
-        300,
-        500,
-        700
-    ],
-
-    "classifier__max_depth": [
-        None,
-        10,
-        20,
-        30,
-        40
-    ],
-
-    "classifier__min_samples_split": [
-        2,
-        5,
-        10
-    ],
-
-    "classifier__min_samples_leaf": [
-        1,
-        2,
-        4
-    ],
-
-    "classifier__max_features": [
-        "sqrt",
-        "log2",
-        None
-    ]
-}
-
-
-# --------------------------------------------------
-# 15. Randomized search
-# --------------------------------------------------
-
-search = RandomizedSearchCV(
-    estimator=model,
-    param_distributions=parameter_grid,
-    n_iter=20,
-    scoring="f1_macro",
-    cv=5,
-    verbose=2,
-    random_state=42,
-    n_jobs=-1
-)
-
-
-print("\nStarting Random Forest tuning...")
-
-search.fit(
+model.fit(
     X_train,
     y_train
 )
 
-print("\nTuning complete.")
+print("Training complete.")
 
 
 # --------------------------------------------------
-# 16. Best parameters
+# 14. Predictions
 # --------------------------------------------------
 
-print("\nBest parameters:")
-
-for key, value in search.best_params_.items():
-    print(
-        key,
-        "=",
-        value
-    )
-
-
-print("\nBest cross-validation score:")
-print(
-    search.best_score_
-)
-
-
-# --------------------------------------------------
-# 17. Get best model
-# --------------------------------------------------
-
-best_model = search.best_estimator_
-
-
-# --------------------------------------------------
-# 18. Test predictions
-# --------------------------------------------------
-
-predictions = best_model.predict(
+predictions = model.predict(
     X_test
 )
 
-probabilities = best_model.predict_proba(
+probabilities = model.predict_proba(
     X_test
 )
-
 
 default_index = list(
-    best_model.classes_
+    model.classes_
 ).index("DEFAULT")
-
 
 default_probabilities = probabilities[
     :,
@@ -333,7 +245,7 @@ default_probabilities = probabilities[
 
 
 # --------------------------------------------------
-# 19. Evaluation
+# 15. Evaluation
 # --------------------------------------------------
 
 accuracy = accuracy_score(
@@ -365,7 +277,7 @@ roc_auc = roc_auc_score(
 )
 
 
-print("\nFINAL TEST RESULTS")
+print("\nRESULTS WITH loan_to_income")
 
 print("\nAccuracy:")
 print(accuracy)
@@ -376,15 +288,13 @@ print(precision)
 print("\nRecall:")
 print(recall)
 
-print("\nF1 Score:")
+print("\nF1:")
 print(f1)
 
 print("\nROC-AUC:")
 print(roc_auc)
 
-
 print("\nConfusion Matrix:")
-
 print(
     confusion_matrix(
         y_test,
@@ -397,11 +307,36 @@ print(
 )
 
 
-print("\nClassification Report:")
+# --------------------------------------------------
+# 16. Feature importance
+# --------------------------------------------------
+
+feature_names = (
+    model["preprocessor"]
+    .get_feature_names_out()
+)
+
+importances = (
+    model["classifier"]
+    .feature_importances_
+)
+
+importance_df = pd.DataFrame({
+    "feature": feature_names,
+    "importance": importances
+})
+
+importance_df = (
+    importance_df
+    .sort_values(
+        "importance",
+        ascending=False
+    )
+)
+
+
+print("\nTop features:")
 
 print(
-    classification_report(
-        y_test,
-        predictions
-    )
+    importance_df.head(20)
 )

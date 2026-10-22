@@ -5,7 +5,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-df = pd.read_csv(PROJECT_ROOT / "data" / "cleaned_loan_data.csv")
+df = pd.read_csv(PROJECT_ROOT / "data" / "processed" / "cleaned_loan_data.csv")
 
 # Create a temporary numeric version of the target
 # ONLY for exploratory analysis.

@@ -2,7 +2,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import (
+    train_test_split,
+    RandomizedSearchCV
+)
+
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
@@ -20,18 +24,18 @@ from sklearn.metrics import (
 )
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 # --------------------------------------------------
 # 1. Load dataset
 # --------------------------------------------------
 
-df = pd.read_csv(PROJECT_ROOT / "data" / "loan_data.csv")
+df = pd.read_csv(PROJECT_ROOT / "data" / "raw" / "loan_data.csv")
 
 
 # --------------------------------------------------
-# 2. Remove rows without a target
+# 2. Remove rows without target
 # --------------------------------------------------
 
 df = df.dropna(
@@ -52,7 +56,7 @@ df = df.drop(
 
 
 # --------------------------------------------------
-# 4. Clean numeric-looking text
+# 4. Clean customer_income
 # --------------------------------------------------
 
 df["customer_income"] = pd.to_numeric(
@@ -60,6 +64,10 @@ df["customer_income"] = pd.to_numeric(
     errors="coerce"
 )
 
+
+# --------------------------------------------------
+# 5. Clean loan amount
+# --------------------------------------------------
 
 df["loan_amnt"] = (
     df["loan_amnt"]
@@ -74,7 +82,7 @@ df["loan_amnt"] = pd.to_numeric(
 
 
 # --------------------------------------------------
-# 5. Features and target
+# 6. Features and target
 # --------------------------------------------------
 
 X = df.drop(
@@ -85,7 +93,7 @@ y = df["Current_loan_status"]
 
 
 # --------------------------------------------------
-# 6. Train/test split
+# 7. Train/test split
 # --------------------------------------------------
 
 X_train, X_test, y_train, y_test = train_test_split(
@@ -97,21 +105,15 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 
-print("Rows before split:")
-print(len(df))
-
-print("\nTraining rows:")
+print("Training rows:")
 print(len(X_train))
 
 print("\nTesting rows:")
 print(len(X_test))
 
-print("\nTesting target distribution:")
-print(y_test.value_counts())
-
 
 # --------------------------------------------------
-# 7. Define feature groups
+# 8. Define feature groups
 # --------------------------------------------------
 
 numeric_features = [
@@ -133,7 +135,7 @@ categorical_features = [
 
 
 # --------------------------------------------------
-# 8. Numeric preprocessing
+# 9. Numeric preprocessing
 # --------------------------------------------------
 
 numeric_pipeline = Pipeline([
@@ -145,7 +147,7 @@ numeric_pipeline = Pipeline([
 
 
 # --------------------------------------------------
-# 9. Categorical preprocessing
+# 10. Categorical preprocessing
 # --------------------------------------------------
 
 categorical_pipeline = Pipeline([
@@ -166,7 +168,7 @@ categorical_pipeline = Pipeline([
 
 
 # --------------------------------------------------
-# 10. Combine preprocessing
+# 11. Combine preprocessing
 # --------------------------------------------------
 
 preprocessor = ColumnTransformer([
@@ -185,7 +187,18 @@ preprocessor = ColumnTransformer([
 
 
 # --------------------------------------------------
-# 11. Create Random Forest pipeline
+# 12. Base Random Forest
+# --------------------------------------------------
+
+forest = RandomForestClassifier(
+    random_state=42,
+    class_weight="balanced",
+    n_jobs=-1
+)
+
+
+# --------------------------------------------------
+# 13. Complete pipeline
 # --------------------------------------------------
 
 model = Pipeline([
@@ -196,122 +209,131 @@ model = Pipeline([
 
     (
         "classifier",
-        RandomForestClassifier(
-            n_estimators=300,
-            random_state=42,
-            class_weight="balanced",
-            n_jobs=-1
-        )
+        forest
     )
 ])
 
 
 # --------------------------------------------------
-# 12. Train model
+# 14. Parameters to search
 # --------------------------------------------------
 
-print("\nTraining Random Forest...")
+parameter_grid = {
 
-model.fit(
+    "classifier__n_estimators": [
+        200,
+        300,
+        500,
+        700
+    ],
+
+    "classifier__max_depth": [
+        None,
+        10,
+        20,
+        30,
+        40
+    ],
+
+    "classifier__min_samples_split": [
+        2,
+        5,
+        10
+    ],
+
+    "classifier__min_samples_leaf": [
+        1,
+        2,
+        4
+    ],
+
+    "classifier__max_features": [
+        "sqrt",
+        "log2",
+        None
+    ]
+}
+
+
+# --------------------------------------------------
+# 15. Randomized search
+# --------------------------------------------------
+
+search = RandomizedSearchCV(
+    estimator=model,
+    param_distributions=parameter_grid,
+    n_iter=20,
+    scoring="f1_macro",
+    cv=5,
+    verbose=2,
+    random_state=42,
+    n_jobs=-1
+)
+
+
+print("\nStarting Random Forest tuning...")
+
+search.fit(
     X_train,
     y_train
 )
 
-print("Training complete.")
+print("\nTuning complete.")
 
 
 # --------------------------------------------------
-# 13. Predictions
+# 16. Best parameters
 # --------------------------------------------------
 
-predictions = model.predict(
+print("\nBest parameters:")
+
+for key, value in search.best_params_.items():
+    print(
+        key,
+        "=",
+        value
+    )
+
+
+print("\nBest cross-validation score:")
+print(
+    search.best_score_
+)
+
+
+# --------------------------------------------------
+# 17. Get best model
+# --------------------------------------------------
+
+best_model = search.best_estimator_
+
+
+# --------------------------------------------------
+# 18. Test predictions
+# --------------------------------------------------
+
+predictions = best_model.predict(
     X_test
 )
 
-probabilities = model.predict_proba(
+probabilities = best_model.predict_proba(
     X_test
 )
+
 
 default_index = list(
-    model.classes_
+    best_model.classes_
 ).index("DEFAULT")
+
 
 default_probabilities = probabilities[
     :,
     default_index
 ]
-thresholds = [
-    0.50,
-    0.45,
-    0.40,
-    0.35,
-    0.30
-]
 
-print("\nRANDOM FOREST THRESHOLD COMPARISON")
-
-for threshold in thresholds:
-
-    threshold_predictions = [
-        "DEFAULT"
-        if probability >= threshold
-        else "NO DEFAULT"
-
-        for probability
-        in default_probabilities
-    ]
-
-    precision = precision_score(
-        y_test,
-        threshold_predictions,
-        pos_label="DEFAULT"
-    )
-
-    recall = recall_score(
-        y_test,
-        threshold_predictions,
-        pos_label="DEFAULT"
-    )
-
-    f1 = f1_score(
-        y_test,
-        threshold_predictions,
-        pos_label="DEFAULT"
-    )
-
-    matrix = confusion_matrix(
-        y_test,
-        threshold_predictions,
-        labels=[
-            "NO DEFAULT",
-            "DEFAULT"
-        ]
-    )
-
-    print(
-        f"\nThreshold: {threshold}"
-    )
-
-    print(
-        f"Precision: {precision:.4f}"
-    )
-
-    print(
-        f"Recall:    {recall:.4f}"
-    )
-
-    print(
-        f"F1 Score:  {f1:.4f}"
-    )
-
-    print(
-        "Confusion Matrix:"
-    )
-
-    print(matrix)
 
 # --------------------------------------------------
-# 14. Evaluation
+# 19. Evaluation
 # --------------------------------------------------
 
 accuracy = accuracy_score(
@@ -342,6 +364,8 @@ roc_auc = roc_auc_score(
     default_probabilities
 )
 
+
+print("\nFINAL TEST RESULTS")
 
 print("\nAccuracy:")
 print(accuracy)
@@ -380,31 +404,4 @@ print(
         y_test,
         predictions
     )
-)
-# --------------------------------------------------
-# 15. Random Forest feature importance
-# --------------------------------------------------
-
-feature_names = model[
-    "preprocessor"
-].get_feature_names_out()
-
-importances = model[
-    "classifier"
-].feature_importances_
-
-importance_df = pd.DataFrame({
-    "feature": feature_names,
-    "importance": importances
-})
-
-importance_df = importance_df.sort_values(
-    "importance",
-    ascending=False
-)
-
-print("\nTop Random Forest features:")
-
-print(
-    importance_df.head(20)
 )

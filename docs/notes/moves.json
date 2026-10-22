@@ -1,0 +1,19 @@
+{
+  "calibration_test.py": "experiments/calibration/calibration_test.py",
+  "calibration_curve_test.py": "experiments/calibration/calibration_curve_test.py",
+  "calibrated_threshold_test.py": "experiments/calibration/calibrated_threshold_test.py",
+  "feature_engineering_test.py": "experiments/feature_engineering/feature_engineering_test.py",
+  "feature_engineering_v2.py": "experiments/feature_engineering/feature_engineering_v2.py",
+  "train_validation_test_threshold.py": "experiments/threshold_tuning/train_validation_test_threshold.py",
+  "cross_validate_models.py": "experiments/model_selection/cross_validate_models.py",
+  "experiments/random_forest_model.py": "experiments/model_selection/random_forest_model.py",
+  "experiments/tune_random_forest.py": "experiments/model_selection/tune_random_forest.py",
+  "experiments/random_forest_thresholds.py": "experiments/threshold_tuning/random_forest_thresholds.py",
+  "experiments/cross_validate_models.py": "experiments/archived_experiments/cross_validate_models.py",
+  "save_model.py": "scripts/training/save_model.py",
+  "predict_applicant.py": "scripts/prediction/predict_applicant.py",
+  "loan_increase_data_audit.py": "scripts/audits/loan_increase_data_audit.py",
+  "data/loan_data.csv": "data/raw/loan_data.csv",
+  "data/cleaned_loan_data.csv": "data/processed/cleaned_loan_data.csv",
+  "test": "tests"
+}

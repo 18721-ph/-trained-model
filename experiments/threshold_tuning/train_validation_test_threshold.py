@@ -16,6 +16,9 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     f1_score,
+    roc_auc_score,
+    brier_score_loss,
+    log_loss,
     confusion_matrix
 )
 
@@ -24,17 +27,18 @@ from sklearn.metrics import (
 # PATHS
 # ==================================================
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 DATA_PATH = (
     BASE_DIR
     / "data"
+    / "raw"
     / "loan_data.csv"
 )
 
 
 # ==================================================
-# LOAD DATA
+# 1. LOAD DATA
 # ==================================================
 
 df = pd.read_csv(DATA_PATH)
@@ -52,7 +56,7 @@ df = df.drop(
 
 
 # ==================================================
-# CLEAN DATA
+# 2. CLEAN DATA
 # ==================================================
 
 df["customer_income"] = pd.to_numeric(
@@ -74,7 +78,7 @@ df["loan_amnt"] = pd.to_numeric(
 
 
 # ==================================================
-# FEATURE ENGINEERING
+# 3. FEATURE ENGINEERING
 # ==================================================
 
 df["loan_to_income"] = (
@@ -101,7 +105,6 @@ for column in [
     "interest_burden",
     "credit_history_ratio"
 ]:
-
     df[column] = (
         df[column]
         .replace(
@@ -115,7 +118,7 @@ for column in [
 
 
 # ==================================================
-# FEATURES / TARGET
+# 4. FEATURES AND TARGET
 # ==================================================
 
 X = df.drop(
@@ -126,10 +129,12 @@ y = df["Current_loan_status"]
 
 
 # ==================================================
-# TRAIN / TEST SPLIT
+# 5. FIRST SPLIT:
+#    80% DEVELOPMENT
+#    20% TEST
 # ==================================================
 
-X_train, X_test, y_train, y_test = train_test_split(
+X_dev, X_test, y_dev, y_test = train_test_split(
     X,
     y,
     test_size=0.20,
@@ -139,7 +144,49 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 
 # ==================================================
-# FEATURE GROUPS
+# 6. SECOND SPLIT:
+#    DEVELOPMENT → TRAIN + VALIDATION
+#
+#    75% of development = TRAIN
+#    25% of development = VALIDATION
+#
+#    Overall:
+#
+#    TRAIN       = 60%
+#    VALIDATION  = 20%
+#    TEST        = 20%
+# ==================================================
+
+X_train, X_val, y_train, y_val = train_test_split(
+    X_dev,
+    y_dev,
+    test_size=0.25,
+    random_state=42,
+    stratify=y_dev
+)
+
+
+print("\nDATA SPLIT")
+print("=" * 40)
+
+print(
+    "Training rows:",
+    len(X_train)
+)
+
+print(
+    "Validation rows:",
+    len(X_val)
+)
+
+print(
+    "Test rows:",
+    len(X_test)
+)
+
+
+# ==================================================
+# 7. FEATURE GROUPS
 # ==================================================
 
 numeric_features = [
@@ -164,7 +211,7 @@ categorical_features = [
 
 
 # ==================================================
-# PREPROCESSING
+# 8. PREPROCESSING
 # ==================================================
 
 numeric_pipeline = Pipeline([
@@ -210,7 +257,7 @@ preprocessor = ColumnTransformer([
 
 
 # ==================================================
-# BASE RANDOM FOREST
+# 9. BASE RANDOM FOREST
 # ==================================================
 
 base_model = Pipeline([
@@ -232,7 +279,7 @@ base_model = Pipeline([
 
 
 # ==================================================
-# CALIBRATED MODEL
+# 10. CALIBRATED MODEL
 # ==================================================
 
 calibrated_model = CalibratedClassifierCV(
@@ -243,7 +290,7 @@ calibrated_model = CalibratedClassifierCV(
 
 
 print(
-    "Training calibrated Random Forest..."
+    "\nTraining calibrated Random Forest..."
 )
 
 calibrated_model.fit(
@@ -257,7 +304,7 @@ print(
 
 
 # ==================================================
-# GET CALIBRATED DEFAULT PROBABILITIES
+# 11. VALIDATION PROBABILITIES
 # ==================================================
 
 classes = list(
@@ -269,114 +316,157 @@ default_index = classes.index(
 )
 
 
-default_probabilities = (
-    calibrated_model.predict_proba(
-        X_test
+val_probabilities = (
+    calibrated_model
+    .predict_proba(
+        X_val
     )[:, default_index]
 )
 
 
 # ==================================================
-# TEST DIFFERENT THRESHOLDS
+# 12. SEARCH THRESHOLDS ON VALIDATION SET
 # ==================================================
 
-thresholds = [
-    0.52,
-    0.54,
-    0.55,
-    0.56,
-    0.57,
-    0.58,
-    0.60
-]
-
-print(
-    "\nCALIBRATED THRESHOLD COMPARISON"
-)
-
-print(
-    "=" * 80
+thresholds = np.arange(
+    0.30,
+    0.71,
+    0.01
 )
 
 
-results = []
+validation_results = []
 
 
 for threshold in thresholds:
 
     predictions = np.where(
-        default_probabilities >= threshold,
+        val_probabilities >= threshold,
         "DEFAULT",
         "NO DEFAULT"
     )
 
 
-    accuracy = accuracy_score(
-        y_test,
-        predictions
-    )
-
-
     precision = precision_score(
-        y_test,
+        y_val,
         predictions,
         pos_label="DEFAULT"
     )
 
 
     recall = recall_score(
-        y_test,
+        y_val,
         predictions,
         pos_label="DEFAULT"
     )
 
 
     f1 = f1_score(
-        y_test,
+        y_val,
         predictions,
         pos_label="DEFAULT"
     )
 
 
-    matrix = confusion_matrix(
-        y_test,
-        predictions,
-        labels=[
-            "NO DEFAULT",
-            "DEFAULT"
-        ]
+    accuracy = accuracy_score(
+        y_val,
+        predictions
     )
 
 
-    tn, fp, fn, tp = (
-        matrix.ravel()
-    )
-
-
-    results.append({
+    validation_results.append({
         "threshold": threshold,
         "accuracy": accuracy,
         "precision": precision,
         "recall": recall,
-        "f1": f1,
-        "true_negative": tn,
-        "false_positive": fp,
-        "false_negative": fn,
-        "true_positive": tp
+        "f1": f1
     })
 
 
+validation_df = pd.DataFrame(
+    validation_results
+)
+
+
 # ==================================================
-# DISPLAY RESULTS
+# 13. FIND BEST VALIDATION THRESHOLD
 # ==================================================
 
-results_df = pd.DataFrame(
-    results
+best_validation_row = (
+    validation_df
+    .loc[
+        validation_df["f1"].idxmax()
+    ]
+)
+
+
+best_threshold = float(
+    best_validation_row[
+        "threshold"
+    ]
 )
 
 
 print(
-    results_df.to_string(
+    "\nBEST THRESHOLD ON VALIDATION SET"
+)
+
+print(
+    "=" * 40
+)
+
+
+print(
+    f"Threshold: "
+    f"{best_threshold:.2f}"
+)
+
+print(
+    f"Accuracy: "
+    f"{best_validation_row['accuracy']:.4f}"
+)
+
+print(
+    f"Precision: "
+    f"{best_validation_row['precision']:.4f}"
+)
+
+print(
+    f"Recall: "
+    f"{best_validation_row['recall']:.4f}"
+)
+
+print(
+    f"F1: "
+    f"{best_validation_row['f1']:.4f}"
+)
+
+
+# ==================================================
+# 14. SHOW TOP VALIDATION THRESHOLDS
+# ==================================================
+
+print(
+    "\nTOP 10 VALIDATION THRESHOLDS BY F1"
+)
+
+print(
+    "=" * 60
+)
+
+
+top_thresholds = (
+    validation_df
+    .sort_values(
+        "f1",
+        ascending=False
+    )
+    .head(10)
+)
+
+
+print(
+    top_thresholds.to_string(
         index=False,
         formatters={
             "threshold":
@@ -404,93 +494,177 @@ print(
 
 
 # ==================================================
-# FIND BEST F1
+# 15. FINAL TEST SET PROBABILITIES
 # ==================================================
 
-best_row = results_df.loc[
-    results_df["f1"].idxmax()
-]
-
-
-print(
-    "\nBEST THRESHOLD BY F1"
-)
-
-print(
-    "===================="
+test_probabilities = (
+    calibrated_model
+    .predict_proba(
+        X_test
+    )[:, default_index]
 )
 
 
+# ==================================================
+# 16. APPLY ONLY THE CHOSEN THRESHOLD
+#     TO THE UNTOUCHED TEST SET
+# ==================================================
+
+test_predictions = np.where(
+    test_probabilities >= best_threshold,
+    "DEFAULT",
+    "NO DEFAULT"
+)
+
+
+# ==================================================
+# 17. FINAL TEST METRICS
+# ==================================================
+
+test_accuracy = accuracy_score(
+    y_test,
+    test_predictions
+)
+
+test_precision = precision_score(
+    y_test,
+    test_predictions,
+    pos_label="DEFAULT"
+)
+
+test_recall = recall_score(
+    y_test,
+    test_predictions,
+    pos_label="DEFAULT"
+)
+
+test_f1 = f1_score(
+    y_test,
+    test_predictions,
+    pos_label="DEFAULT"
+)
+
+
+y_test_binary = (
+    y_test == "DEFAULT"
+).astype(int)
+
+
+test_roc_auc = roc_auc_score(
+    y_test_binary,
+    test_probabilities
+)
+
+test_brier = brier_score_loss(
+    y_test_binary,
+    test_probabilities
+)
+
+test_log_loss = log_loss(
+    y_test_binary,
+    test_probabilities
+)
+
+
+matrix = confusion_matrix(
+    y_test,
+    test_predictions,
+    labels=[
+        "NO DEFAULT",
+        "DEFAULT"
+    ]
+)
+
+
+tn, fp, fn, tp = (
+    matrix.ravel()
+)
+
+
+# ==================================================
+# 18. FINAL UNTOUCHED TEST RESULTS
+# ==================================================
+
 print(
-    f"Threshold: "
-    f"{best_row['threshold']:.2f}"
+    "\nFINAL UNTOUCHED TEST RESULTS"
+)
+
+print(
+    "=" * 40
 )
 
 
 print(
-    f"Accuracy: "
-    f"{best_row['accuracy']:.4f}"
+    f"Chosen threshold: "
+    f"{best_threshold:.2f}"
 )
 
+
+print(
+    f"\nAccuracy: "
+    f"{test_accuracy:.4f}"
+)
 
 print(
     f"Precision: "
-    f"{best_row['precision']:.4f}"
+    f"{test_precision:.4f}"
 )
-
 
 print(
     f"Recall: "
-    f"{best_row['recall']:.4f}"
+    f"{test_recall:.4f}"
 )
-
 
 print(
     f"F1: "
-    f"{best_row['f1']:.4f}"
+    f"{test_f1:.4f}"
+)
+
+print(
+    f"ROC-AUC: "
+    f"{test_roc_auc:.4f}"
+)
+
+print(
+    f"Brier score: "
+    f"{test_brier:.4f}"
+)
+
+print(
+    f"Log loss: "
+    f"{test_log_loss:.4f}"
 )
 
 
 print(
-    "\nConfusion values:"
+    "\nConfusion Matrix:"
 )
 
+print(
+    matrix
+)
+
+
+print(
+    "\nDetailed counts:"
+)
 
 print(
     "True negatives:",
-    int(
-        best_row[
-            "true_negative"
-        ]
-    )
+    tn
 )
-
 
 print(
     "False positives:",
-    int(
-        best_row[
-            "false_positive"
-        ]
-    )
+    fp
 )
-
 
 print(
     "False negatives:",
-    int(
-        best_row[
-            "false_negative"
-        ]
-    )
+    fn
 )
-
 
 print(
     "True positives:",
-    int(
-        best_row[
-            "true_positive"
-        ]
-    )
+    tp
 )

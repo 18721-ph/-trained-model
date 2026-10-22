@@ -2,7 +2,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
@@ -10,9 +9,15 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.calibration import (
-    CalibratedClassifierCV,
-    calibration_curve
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.metrics import (
+    brier_score_loss,
+    log_loss,
+    roc_auc_score,
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score
 )
 
 
@@ -20,11 +25,12 @@ from sklearn.calibration import (
 # PATHS
 # ==================================================
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 DATA_PATH = (
     BASE_DIR
     / "data"
+    / "raw"
     / "loan_data.csv"
 )
 
@@ -214,7 +220,7 @@ preprocessor = ColumnTransformer([
 
 
 # ==================================================
-# BASE MODEL
+# BASE RANDOM FOREST
 # ==================================================
 
 base_model = Pipeline([
@@ -235,18 +241,18 @@ base_model = Pipeline([
 ])
 
 
-print(
-    "Training uncalibrated model..."
-)
+# ==================================================
+# TRAIN BASE MODEL
+# ==================================================
+
+print("Training uncalibrated Random Forest...")
 
 base_model.fit(
     X_train,
     y_train
 )
 
-print(
-    "Done."
-)
+print("Done.")
 
 
 # ==================================================
@@ -254,7 +260,7 @@ print(
 # ==================================================
 
 print(
-    "\nTraining calibrated model..."
+    "\nTraining calibrated Random Forest..."
 )
 
 calibrated_model = CalibratedClassifierCV(
@@ -268,39 +274,38 @@ calibrated_model.fit(
     y_train
 )
 
-print(
-    "Done."
-)
+print("Done.")
 
 
 # ==================================================
 # GET PROBABILITIES
 # ==================================================
 
-base_default_index = list(
+base_classes = list(
     base_model.classes_
-).index(
-    "DEFAULT"
 )
 
-calibrated_default_index = list(
-    calibrated_model.classes_
-).index(
-    "DEFAULT"
+base_default_index = (
+    base_classes.index("DEFAULT")
 )
-
 
 base_probabilities = (
-    base_model
-    .predict_proba(
+    base_model.predict_proba(
         X_test
     )[:, base_default_index]
 )
 
 
+calibrated_classes = list(
+    calibrated_model.classes_
+)
+
+calibrated_default_index = (
+    calibrated_classes.index("DEFAULT")
+)
+
 calibrated_probabilities = (
-    calibrated_model
-    .predict_proba(
+    calibrated_model.predict_proba(
         X_test
     )[:, calibrated_default_index]
 )
@@ -316,127 +321,245 @@ y_test_binary = (
 
 
 # ==================================================
-# CALIBRATION CURVES
+# PREDICTIONS
 # ==================================================
 
-base_true_rate, base_predicted_rate = (
-    calibration_curve(
-        y_test_binary,
+base_predictions = (
+    base_model.predict(
+        X_test
+    )
+)
+
+calibrated_predictions = (
+    calibrated_model.predict(
+        X_test
+    )
+)
+
+
+# ==================================================
+# EVALUATION FUNCTION
+# ==================================================
+
+def evaluate_model(
+    name,
+    predictions,
+    probabilities
+):
+
+    print(
+        f"\n{name}"
+    )
+
+    print(
+        "=" * len(name)
+    )
+
+
+    print(
+        "Accuracy:",
+        accuracy_score(
+            y_test,
+            predictions
+        )
+    )
+
+
+    print(
+        "Precision:",
+        precision_score(
+            y_test,
+            predictions,
+            pos_label="DEFAULT"
+        )
+    )
+
+
+    print(
+        "Recall:",
+        recall_score(
+            y_test,
+            predictions,
+            pos_label="DEFAULT"
+        )
+    )
+
+
+    print(
+        "F1:",
+        f1_score(
+            y_test,
+            predictions,
+            pos_label="DEFAULT"
+        )
+    )
+
+
+    print(
+        "ROC-AUC:",
+        roc_auc_score(
+            y_test_binary,
+            probabilities
+        )
+    )
+
+
+    print(
+        "Brier score:",
+        brier_score_loss(
+            y_test_binary,
+            probabilities
+        )
+    )
+
+
+    print(
+        "Log loss:",
+        log_loss(
+            y_test_binary,
+            probabilities
+        )
+    )
+
+
+# ==================================================
+# SHOW RESULTS
+# ==================================================
+
+evaluate_model(
+    "UNCALIBRATED RANDOM FOREST",
+    base_predictions,
+    base_probabilities
+)
+
+evaluate_model(
+    "CALIBRATED RANDOM FOREST",
+    calibrated_predictions,
+    calibrated_probabilities
+)
+
+
+# ==================================================
+# PROBABILITY COMPARISON
+# ==================================================
+
+comparison = pd.DataFrame({
+
+    "actual":
+        y_test.values,
+
+    "uncalibrated_probability":
         base_probabilities,
-        n_bins=10,
-        strategy="quantile"
-    )
+
+    "calibrated_probability":
+        calibrated_probabilities
+
+})
+
+
+comparison[
+    "difference"
+] = (
+    comparison[
+        "calibrated_probability"
+    ]
+    -
+    comparison[
+        "uncalibrated_probability"
+    ]
 )
-
-
-cal_true_rate, cal_predicted_rate = (
-    calibration_curve(
-        y_test_binary,
-        calibrated_probabilities,
-        n_bins=10,
-        strategy="quantile"
-    )
-)
-
-
-# ==================================================
-# PRINT TABLES
-# ==================================================
-
-print(
-    "\nUNCALIBRATED CALIBRATION BINS"
-)
-
-print(
-    "Predicted probability -> "
-    "Observed default rate"
-)
-
-for predicted, actual in zip(
-    base_predicted_rate,
-    base_true_rate
-):
-
-    print(
-        f"{predicted * 100:6.2f}%"
-        f" -> "
-        f"{actual * 100:6.2f}%"
-    )
 
 
 print(
-    "\nCALIBRATED CALIBRATION BINS"
+    "\nExamples where calibration "
+    "changed the probability most:"
 )
 
 print(
-    "Predicted probability -> "
-    "Observed default rate"
-)
-
-for predicted, actual in zip(
-    cal_predicted_rate,
-    cal_true_rate
-):
-
-    print(
-        f"{predicted * 100:6.2f}%"
-        f" -> "
-        f"{actual * 100:6.2f}%"
+    comparison
+    .assign(
+        abs_difference=lambda x:
+            x["difference"].abs()
     )
-
-
-# ==================================================
-# PLOT
-# ==================================================
-
-plt.figure(
-    figsize=(8, 6)
+    .sort_values(
+        "abs_difference",
+        ascending=False
+    )
+    .head(20)
+    [
+        [
+            "actual",
+            "uncalibrated_probability",
+            "calibrated_probability",
+            "difference"
+        ]
+    ]
 )
+# ==================================================
+# TEST A SPECIFIC APPLICANT
+# ==================================================
 
+sample_applicant = pd.DataFrame([
+    {
+        "customer_age": 30,
+        "customer_income": 40000,
+        "home_ownership": "RENT",
+        "employment_duration": 7,
+        "loan_intent": "PERSONAL",
+        "loan_grade": "B",
+        "loan_amnt": 15000,
+        "loan_int_rate": 10,
+        "term_years": 1,
+        "cred_hist_length": 5,
 
-# Perfect calibration line
-plt.plot(
-    [0, 1],
-    [0, 1],
-    linestyle="--",
-    label="Perfect calibration"
-)
+        "loan_to_income":
+            15000 / 40000,
+
+        "interest_burden":
+            15000 * (10 / 100),
+
+        "credit_history_ratio":
+            5 / 30
+    }
+])
 
 
 # Uncalibrated
-plt.plot(
-    base_predicted_rate,
-    base_true_rate,
-    marker="o",
-    label="Uncalibrated Random Forest"
+base_probability = (
+    base_model.predict_proba(
+        sample_applicant
+    )[0][base_default_index]
 )
 
 
 # Calibrated
-plt.plot(
-    cal_predicted_rate,
-    cal_true_rate,
-    marker="o",
-    label="Calibrated Random Forest"
+calibrated_probability = (
+    calibrated_model.predict_proba(
+        sample_applicant
+    )[0][calibrated_default_index]
 )
 
 
-plt.xlabel(
-    "Mean predicted probability of DEFAULT"
+print(
+    "\nSPECIFIC APPLICANT COMPARISON"
 )
 
-plt.ylabel(
-    "Observed fraction of DEFAULT"
+print(
+    "============================="
 )
 
-plt.title(
-    "Calibration Curve"
+print(
+    f"Uncalibrated DEFAULT probability: "
+    f"{base_probability * 100:.2f}%"
 )
 
-plt.legend()
+print(
+    f"Calibrated DEFAULT probability: "
+    f"{calibrated_probability * 100:.2f}%"
+)
 
-plt.grid(True)
-
-plt.tight_layout()
-
-plt.show()
+print(
+    f"Difference: "
+    f"{(calibrated_probability - base_probability) * 100:.2f} "
+    f"percentage points"
+)

@@ -13,5 +13,22 @@
   "test/test_prediction.py::test_probability_above_threshold",
   "test/test_prediction.py::test_probability_below_threshold",
   "test/test_prediction.py::test_probability_equal_to_threshold",
-  "test/test_prediction.py::test_zero_income_does_not_create_infinity"
+  "test/test_prediction.py::test_zero_income_does_not_create_infinity",
+  "tests/test_api.py::test_credit_history_longer_than_age_is_rejected",
+  "tests/test_api.py::test_invalid_age_is_rejected",
+  "tests/test_api.py::test_invalid_home_ownership_is_rejected",
+  "tests/test_api.py::test_predict_endpoint",
+  "tests/test_api.py::test_root_endpoint",
+  "tests/test_api.py::test_unrealistic_employment_duration_is_rejected",
+  "tests/test_model.py::test_feature_engineering",
+  "tests/test_model.py::test_metadata_loads",
+  "tests/test_model.py::test_model_files_exist",
+  "tests/test_model.py::test_models_load",
+  "tests/test_model.py::test_prediction_probability",
+  "tests/test_model.py::test_threshold_valid",
+  "tests/test_prediction.py::test_low_probability",
+  "tests/test_prediction.py::test_probability_above_threshold",
+  "tests/test_prediction.py::test_probability_below_threshold",
+  "tests/test_prediction.py::test_probability_equal_to_threshold",
+  "tests/test_prediction.py::test_zero_income_does_not_create_infinity"
 ]
