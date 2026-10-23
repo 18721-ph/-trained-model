@@ -1,5 +1,11 @@
 import type { ApplicantRequest, PredictionResponse } from '../types/prediction'
 const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8001').replace(/\/$/, '')
+export async function checkApiConnection(): Promise<void> {
+  const response = await fetch(`${baseUrl}/`, { signal: AbortSignal.timeout(10000) })
+  if (!response.ok) throw new Error('API unavailable')
+  const data: unknown = await response.json()
+  if (!record(data) || data.message !== 'Loan Default Prediction API is running') throw new Error('Unexpected API response')
+}
 const record = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
 const probability = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
 function factors(value: unknown) {

@@ -60,7 +60,12 @@ See the [organization report](docs/notes/reorganization.md), [original inventory
 - `tests/`: Python tests; `frontend/src/**/*.test.*`: mocked frontend tests.
 - `frontend/e2e/`: real local browser integration test.
 
-No submissions are persisted or sent to external services. Editing inputs clears the previous result. Dashboard, history and settings are marked as planned. Model information is a static reference to the current metadata, not a live health check.
+Submissions go to the configured prediction API. Successful assessments are retained in browser memory for the current session by default; no records are written to browser storage or a database. Refreshing or closing the page clears history and resets preferences. Editing inputs clears the current result but preserves completed history entries.
+
+- Dashboard summarizes retained assessments, predicted classes and mean default probability. These are session statistics, not model performance metrics.
+- Assessment History filters results by prediction and shows original inputs, probabilities, thresholds and SHAP explanations.
+- Settings enables/disables future history collection, clears existing history after confirmation, and checks the configured API connection. Clearing history leaves the current assessment form/result intact.
+- Model Information remains a static reference to the current metadata. Workspace settings do not change the model or its decision threshold.
 
 ## Backend setup: Windows PowerShell
 

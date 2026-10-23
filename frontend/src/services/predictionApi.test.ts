@@ -1,7 +1,17 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { predictApplicant } from './predictionApi'
+import { checkApiConnection, predictApplicant } from './predictionApi'
 import { applicant, prediction } from '../test/fixtures'
 afterEach(() => vi.unstubAllGlobals())
+it('checks the configured API health endpoint', async () => {
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ message: 'Loan Default Prediction API is running' }))
+  vi.stubGlobal('fetch', fetchMock)
+  await expect(checkApiConnection()).resolves.toBeUndefined()
+  expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:8001/', expect.objectContaining({ signal: expect.any(AbortSignal) }))
+})
+it.each([Response.json({ message: 'Unrelated service' }), Response.json({}, { status: 500 })])('rejects an unavailable or unexpected health endpoint', async response => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
+  await expect(checkApiConnection()).rejects.toThrow()
+})
 it('posts the API contract and returns validated data', async () => {
   const fetchMock = vi.fn().mockResolvedValue(Response.json(prediction))
   vi.stubGlobal('fetch', fetchMock)
