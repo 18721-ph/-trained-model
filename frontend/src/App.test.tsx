@@ -4,15 +4,18 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import App from './App'
 import { checkApiConnection, predictApplicant } from './services/predictionApi'
 import { applicant, prediction } from './test/fixtures'
+import { getCurrentUser } from './services/authApi'
 
 vi.mock('./services/predictionApi', () => ({ predictApplicant: vi.fn(), checkApiConnection: vi.fn() }))
-beforeEach(() => vi.resetAllMocks())
+vi.mock('./services/authApi', () => ({ getCurrentUser: vi.fn(), login: vi.fn(), logout: vi.fn() }))
+beforeEach(() => { vi.resetAllMocks(); vi.mocked(getCurrentUser).mockResolvedValue({ username: 'test', display_name: 'Test Analyst', role: 'analyst' }) })
 async function navigate(name: string) {
-  await userEvent.click(within(screen.getByRole('navigation')).getByRole('button', { name }))
+  await userEvent.click(within(await screen.findByRole('navigation')).getByRole('button', { name }))
 }
 async function assess() {
+  await screen.findByRole('button', { name: 'Assess Default Risk' })
   for (const [name, value] of Object.entries(applicant)) fireEvent.change(document.getElementById(name)!, { target: { value: String(value) } })
-  await userEvent.click(screen.getByRole('button', { name: 'Assess Default Risk' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Assess Default Risk' }))
 }
 
 it('opens every page and shows honest empty states', async () => {

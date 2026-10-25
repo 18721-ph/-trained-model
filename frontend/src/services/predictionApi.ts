@@ -1,4 +1,5 @@
 import type { ApplicantRequest, PredictionResponse } from '../types/prediction'
+import { getCsrfToken } from './authApi'
 const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8001').replace(/\/$/, '')
 export async function checkApiConnection(): Promise<void> {
   const response = await fetch(`${baseUrl}/`, { signal: AbortSignal.timeout(10000) })
@@ -20,11 +21,12 @@ function validResponse(value: unknown): value is PredictionResponse {
 export async function predictApplicant(applicant: ApplicantRequest): Promise<PredictionResponse> {
   let response: Response
   try {
-    response = await fetch(`${baseUrl}/predict`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(applicant), signal: AbortSignal.timeout(60000) })
+    response = await fetch(`${baseUrl}/predict`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': await getCsrfToken() }, body: JSON.stringify(applicant), signal: AbortSignal.timeout(60000) })
   } catch { throw new Error('Unable to reach the prediction service. Check that the local API is running on port 8001, then try again.') }
   let data: unknown
   try { data = await response.json() } catch { throw new Error('The prediction service returned an unreadable response. Please try again.') }
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) throw new Error('Your session has expired. Please sign in again.')
     if (response.status === 422 && record(data) && Array.isArray(data.detail)) {
       const messages = data.detail.filter(record).map(item => {
         const field = Array.isArray(item.loc) ? item.loc.filter(part => part !== 'body').join(' ').replaceAll('_', ' ') : ''

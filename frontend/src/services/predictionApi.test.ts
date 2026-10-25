@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { checkApiConnection, predictApplicant } from './predictionApi'
 import { applicant, prediction } from '../test/fixtures'
+vi.mock('./authApi', () => ({ getCsrfToken: vi.fn().mockResolvedValue('test-csrf') }))
 afterEach(() => vi.unstubAllGlobals())
 it('checks the configured API health endpoint', async () => {
   const fetchMock = vi.fn().mockResolvedValue(Response.json({ message: 'Loan Default Prediction API is running' }))

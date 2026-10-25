@@ -11,6 +11,12 @@ __pycache__/
 
 # Environment variables
 .env
+.env.*
+!.env.example
+data/runtime/
+*.sqlite3
+*.sqlite3-journal
+*.log
 
 # ML artifacts
 *.pkl

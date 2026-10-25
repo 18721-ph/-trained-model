@@ -124,3 +124,14 @@ class PredictionResponse(BaseModel):
     top_protective_factors: list[
         ExplanationFactor
     ]
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=254)
+    password: str = Field(min_length=1, max_length=1024)
+
+
+class UserResponse(BaseModel):
+    username: str
+    display_name: str
+    role: str
