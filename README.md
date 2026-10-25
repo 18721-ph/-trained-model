@@ -134,7 +134,7 @@ Verified in this workspace: lint and production build passed; 17 frontend unit t
 
 ## Limitations and interpretation
 
-This is an academic prototype without authentication, customer storage, CRB integration or production infrastructure. Model Information shows approximate evaluation results on the held-out project test dataset, not guarantees for real bank customers. Independent validation, fairness assessment, access controls and monitoring would be needed before operational deployment.
+This is an academic prototype without customer storage, CRB integration or production infrastructure. It now has a server-enforced staff authentication foundation; see [authentication documentation](docs/authentication.md) for provisioning, sessions, CSRF, local/production configuration and remaining deployment requirements. Model Information shows approximate evaluation results on the held-out project test dataset, not guarantees for real bank customers. Independent validation, fairness assessment, access controls and monitoring would be needed before operational deployment.
 
 This prediction is intended to support credit assessment and should not be used as the sole basis for approving or rejecting a loan.
 

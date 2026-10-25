@@ -1,9 +1,22 @@
 from fastapi.testclient import TestClient
 
 from api.main import app
+from api.auth import create_user, initialize_database
 
 
 client = TestClient(app)
+
+initialize_database()
+try:
+    create_user("api-test-user", "CorrectHorse1")
+except ValueError:
+    pass
+
+def auth_headers():
+    response = client.post("/auth/login", json={"username": "api-test-user", "password": "CorrectHorse1"})
+    assert response.status_code == 200
+    token = client.get("/auth/csrf").json()["csrf_token"]
+    return {"X-CSRF-Token": token}
 
 
 def test_root_endpoint():
@@ -33,10 +46,7 @@ def test_predict_endpoint():
         "cred_hist_length": 9
     }
 
-    response = client.post(
-        "/predict",
-        json=applicant
-    )
+    response = client.post("/predict", json=applicant, headers=auth_headers())
 
     assert response.status_code == 200
 
@@ -87,7 +97,8 @@ def test_invalid_age_is_rejected():
 
     response = client.post(
         "/predict",
-        json=applicant
+        json=applicant,
+        headers=auth_headers()
     )
 
     assert response.status_code == 422
@@ -110,7 +121,8 @@ def test_invalid_home_ownership_is_rejected():
 
     response = client.post(
         "/predict",
-        json=applicant
+        json=applicant,
+        headers=auth_headers()
     )
 
     assert response.status_code == 422
@@ -132,7 +144,8 @@ def test_unrealistic_employment_duration_is_rejected():
 
     response = client.post(
         "/predict",
-        json=applicant
+        json=applicant,
+        headers=auth_headers()
     )
 
     assert response.status_code == 422
@@ -155,7 +168,8 @@ def test_credit_history_longer_than_age_is_rejected():
 
     response = client.post(
         "/predict",
-        json=applicant
+        json=applicant,
+        headers=auth_headers()
     )
 
     assert response.status_code == 422

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Page } from '../../types/workspace'
-export function Shell({ children, page, onNavigate }: { children: ReactNode; page: Page; onNavigate: (page: Page) => void }) {
+export function Shell({ children, page, onNavigate, displayName, onLogout }: { children: ReactNode; page: Page; onNavigate: (page: Page) => void; displayName: string; onLogout: () => void }) {
   return <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
     <a className="skip-link" href="#workspace">Skip to workspace</a>
     <aside className="flex flex-col bg-slate-900 px-5 py-7 text-slate-200 lg:sticky lg:top-0 lg:h-screen">
@@ -25,6 +25,7 @@ export function Shell({ children, page, onNavigate }: { children: ReactNode; pag
         <button className="nav-item" aria-current={page === 'model' ? 'page' : undefined} onClick={() => onNavigate('model')}>Model Information</button>
         <button className="nav-item" aria-current={page === 'settings' ? 'page' : undefined} onClick={() => onNavigate('settings')}>Settings</button>
       </nav>
+      <div className="mt-5 border-t border-slate-700 pt-4 text-xs"><p className="mb-2 text-slate-300">Signed in as {displayName}</p><button className="nav-item w-full" onClick={onLogout}>Sign out</button></div>
       <div className="mt-auto hidden border-t border-slate-700 pt-5 text-xs leading-6 text-slate-400 lg:block">Academic prototype<p className="text-slate-300">Local assessment environment</p><p>Session history clears on refresh.</p></div>
     </aside>
     <div className="min-w-0"><header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-5 lg:px-9"><span className="text-sm font-medium">Loan Default Risk Assessment</span><span className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600">Prototype · Model v1.0</span></header><main id="workspace" className="mx-auto max-w-[1500px] px-5 py-8 lg:px-9">{children}</main></div>
