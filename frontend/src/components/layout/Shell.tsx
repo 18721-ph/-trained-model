@@ -24,6 +24,7 @@ export function Shell({ children, page, onNavigate, displayName, onLogout }: { c
         <button className="nav-item" aria-current={page === 'history' ? 'page' : undefined} onClick={() => onNavigate('history')}>Assessment History</button>
         <button className="nav-item" aria-current={page === 'model' ? 'page' : undefined} onClick={() => onNavigate('model')}>Model Information</button>
         <button className="nav-item" aria-current={page === 'settings' ? 'page' : undefined} onClick={() => onNavigate('settings')}>Settings</button>
+        <button className="nav-item" aria-current={page === 'password' ? 'page' : undefined} onClick={() => onNavigate('password')}>Change password</button>
       </nav>
       <div className="mt-5 border-t border-slate-700 pt-4 text-xs"><p className="mb-2 text-slate-300">Signed in as {displayName}</p><button className="nav-item w-full" onClick={onLogout}>Sign out</button></div>
       <div className="mt-auto hidden border-t border-slate-700 pt-5 text-xs leading-6 text-slate-400 lg:block">Academic prototype<p className="text-slate-300">Local assessment environment</p><p>Session history clears on refresh.</p></div>

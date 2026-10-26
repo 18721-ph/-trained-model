@@ -23,6 +23,8 @@ For local HTTP development `Secure` is false by the explicit development configu
 3. It calls `POST /predict` with the cookie and `X-CSRF-Token`; invalid sessions return 401 and invalid/missing CSRF returns 403.
 4. `POST /auth/logout` verifies CSRF, revokes the session, and expires the cookie.
 
+To change a password, select **Change password** in the workspace navigation. The API requires the current password and CSRF token, applies the same strength rules as provisioning, replaces the Argon2id hash, revokes all old sessions, and issues the current browser a fresh session.
+
 Login failures use one generic message and are limited per direct client IP (default five failures per 15 minutes). This SQLite limiter works across processes that share the database, but a real multi-instance service should use a shared rate-limit store and trusted-proxy configuration.
 
 ## Verification and limits

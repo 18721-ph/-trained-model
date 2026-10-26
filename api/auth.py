@@ -64,6 +64,18 @@ def authenticate(username: str, password: str) -> sqlite3.Row | None:
     try: valid = password_hasher.verify(user["password_hash"] if user else _DUMMY_HASH, password)
     except (VerifyMismatchError, InvalidHashError): valid = False
     return user if user and valid else None
+def change_password(user_id: int, current_password: str, new_password: str) -> bool:
+    """Verify the existing secret before replacing its Argon2id hash."""
+    validate_password_strength(new_password)
+    with _connection() as db:
+        user = db.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,)).fetchone()
+        try: valid = bool(user) and password_hasher.verify(user["password_hash"], current_password)
+        except (VerifyMismatchError, InvalidHashError): valid = False
+        if not valid: return False
+        db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (password_hasher.hash(new_password), user_id))
+        # Every pre-change session is invalid, including the current one.
+        db.execute("UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL", (_now(), user_id))
+    return True
 def create_session(user: sqlite3.Row) -> tuple[str, str]:
     session_id, csrf_token, now = secrets.token_urlsafe(32), secrets.token_urlsafe(32), _now()
     with _connection() as db: db.execute("INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, NULL)", (_digest(session_id), user["id"], _digest(csrf_token), now, now, now + settings.session_idle_seconds, now + settings.session_absolute_seconds))
