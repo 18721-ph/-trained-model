@@ -7,8 +7,9 @@ import { AssessmentHistory } from './pages/AssessmentHistory'
 import { Settings } from './pages/Settings'
 import type { AssessmentRecord, Page } from './types/workspace'
 import type { ApplicantRequest, PredictionResponse } from './types/prediction'
-import { getCurrentUser, login, logout, type CurrentUser } from './services/authApi'
+import { changePassword, getCurrentUser, login, logout, type CurrentUser } from './services/authApi'
 import { LoginPage } from './pages/LoginPage'
+import { ChangePasswordPage } from './pages/ChangePasswordPage'
 export default function App() {
   const [user, setUser] = useState<CurrentUser | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
@@ -33,5 +34,6 @@ export default function App() {
     {page === 'history' && <AssessmentHistory records={records} onNew={() => setPage('assessment')} />}
     {page === 'model' && <ModelInformation />}
     {page === 'settings' && <Settings keepHistory={keepHistory} onKeepHistoryChange={updateHistoryPreference} recordCount={records.length} onClear={() => setRecords([])} />}
+    {page === 'password' && <ChangePasswordPage onChange={async (currentPassword, newPassword) => { const updated = await changePassword(currentPassword, newPassword); setUser(updated); return updated }} />}
   </Shell>
 }

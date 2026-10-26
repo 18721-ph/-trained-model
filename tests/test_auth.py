@@ -48,6 +48,15 @@ def test_logout_revokes_session(client):
     assert client.post("/auth/logout", headers={"X-CSRF-Token": token}).status_code == 204
     assert client.get("/auth/me").status_code == 401
     assert client.post("/predict", json=APPLICANT, headers={"X-CSRF-Token": token}).status_code == 401
+def test_change_password_requires_current_password_and_revokes_old_session(client):
+    sign_in(client); old_token = csrf(client)
+    rejected = client.post("/auth/change-password", json={"current_password": "WrongPassword1", "new_password": "NewCorrectHorse2"}, headers={"X-CSRF-Token": old_token})
+    assert rejected.status_code == 400
+    response = client.post("/auth/change-password", json={"current_password": "CorrectHorse1", "new_password": "NewCorrectHorse2"}, headers={"X-CSRF-Token": old_token})
+    assert response.status_code == 200
+    assert client.post("/predict", json=APPLICANT, headers={"X-CSRF-Token": old_token}).status_code == 403
+    assert client.post("/auth/login", json={"username": "analyst@example.test", "password": "CorrectHorse1"}).status_code == 401
+    assert client.post("/auth/login", json={"username": "analyst@example.test", "password": "NewCorrectHorse2"}).status_code == 200
 def test_expired_and_malformed_session_are_rejected(client):
     sign_in(client)
     with sqlite3.connect(settings.database_path) as db: db.execute("UPDATE sessions SET idle_expires_at=?", (int(time.time()) - 1,))

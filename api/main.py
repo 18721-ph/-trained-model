@@ -1,9 +1,9 @@
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from api.auth import (AuthenticatedUser, authenticate, clear_session_cookie, create_session, current_user, initialize_database, issue_session_cookie, rate_limited, record_failed_login, require_csrf, revoke_session)
+from api.auth import (AuthenticatedUser, _connection, authenticate, change_password, clear_session_cookie, create_session, current_user, initialize_database, issue_session_cookie, rate_limited, record_failed_login, require_csrf, revoke_session)
 from api.config import settings
-from api.schemas import ApplicantRequest, LoginRequest, PredictionResponse, UserResponse
+from api.schemas import ApplicantRequest, ChangePasswordRequest, LoginRequest, PredictionResponse, UserResponse
 from api.service import predict_default
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -41,6 +41,21 @@ def login(credentials: LoginRequest, request: Request, response: Response):
 
 @app.get("/auth/me", response_model=UserResponse)
 def me(user: AuthenticatedUser = Depends(current_user)): return public_user(user)
+
+@app.post("/auth/change-password", response_model=UserResponse)
+def change_current_password(payload: ChangePasswordRequest, response: Response, user: AuthenticatedUser = Depends(require_csrf)):
+    try:
+        changed = change_password(user.id, payload.current_password, payload.new_password)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+    if not changed:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is incorrect.")
+    # Password changes get a brand-new session; every prior browser is signed out.
+    with _connection() as db:
+        account = db.execute("SELECT * FROM users WHERE id = ?", (user.id,)).fetchone()
+    session_id, _ = create_session(account)
+    issue_session_cookie(response, session_id)
+    return public_user(AuthenticatedUser(user.id, user.username, user.display_name, user.role, session_id))
 
 @app.get("/auth/csrf")
 def csrf(user: AuthenticatedUser = Depends(current_user)):
