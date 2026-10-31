@@ -99,7 +99,7 @@ Copy-Item .env.example .env
 npm.cmd run dev
 ```
 
-Open http://localhost:5173 . The fixed Vite port matches the existing API CORS configuration.
+Open http://127.0.0.1:5173 . Use this same hostname for the frontend and API so the browser sends the session cookie with authenticated requests.
 
 `VITE_API_BASE_URL` defaults to `http://127.0.0.1:8001`; set it in `frontend/.env` and restart Vite to override it. Use only your local API for applicant data. Environment values are public configuration, not secrets. Enter income and loan amount in the same monetary unit consistent with the project dataset; no currency conversion is performed.
 
