@@ -10,6 +10,7 @@ import type { ApplicantRequest, PredictionResponse } from './types/prediction'
 import { changePassword, getCurrentUser, login, logout, type CurrentUser } from './services/authApi'
 import { LoginPage } from './pages/LoginPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
+import { NotFoundPage } from './pages/NotFoundPage'
 export default function App() {
   const [user, setUser] = useState<CurrentUser | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
@@ -17,6 +18,7 @@ export default function App() {
   const [records, setRecords] = useState<AssessmentRecord[]>([])
   const [keepHistory, setKeepHistory] = useState(true)
   const historyEnabled = useRef(true)
+  const isNotFound = window.location.pathname !== '/'
   function updateHistoryPreference(enabled: boolean) {
     historyEnabled.current = enabled
     setKeepHistory(enabled)
@@ -24,7 +26,11 @@ export default function App() {
   function recordAssessment(applicant: ApplicantRequest, result: PredictionResponse) {
     if (historyEnabled.current) setRecords(current => [{ id: crypto.randomUUID(), createdAt: new Date().toISOString(), applicant, result }, ...current])
   }
-  useEffect(() => { getCurrentUser().then(setUser).catch(() => setUser(null)).finally(() => setCheckingSession(false)) }, [])
+  useEffect(() => {
+    if (isNotFound) return
+    getCurrentUser().then(setUser).catch(() => setUser(null)).finally(() => setCheckingSession(false))
+  }, [isNotFound])
+  if (isNotFound) return <NotFoundPage />
   if (checkingSession) return <main className="grid min-h-screen place-items-center text-sm text-slate-600">Checking secure session…</main>
   if (!user) return <LoginPage onLogin={async (username, password) => setUser(await login(username, password))} />
   async function signOut() { try { await logout() } finally { setUser(null); setRecords([]) } }

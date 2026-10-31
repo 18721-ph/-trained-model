@@ -29,6 +29,19 @@ it('opens every page and shows honest empty states', async () => {
   expect(screen.queryByText('Planned')).not.toBeInTheDocument()
 })
 
+it('shows a 404 page for an unknown URL', () => {
+  window.history.pushState({}, '', '/this-page-does-not-exist')
+  try {
+    render(<App />)
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Return to home' })).toHaveAttribute('href', '/')
+    expect(screen.queryByRole('heading', { name: 'Sign in' })).not.toBeInTheDocument()
+    expect(getCurrentUser).not.toHaveBeenCalled()
+  } finally {
+    window.history.pushState({}, '', '/')
+  }
+})
+
 it('records a successful prediction, filters history, reviews inputs and explanations, and clears records', async () => {
   vi.mocked(predictApplicant).mockResolvedValue(prediction)
   render(<App />)
