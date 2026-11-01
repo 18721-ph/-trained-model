@@ -3,7 +3,7 @@ export function NotFoundPage() {
     <section className="max-w-md text-center">
       <p className="eyebrow">ERROR 404</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">Page not found</h1>
-      <p className="mt-3 text-sm leading-6 text-slate-600">The page you’re looking for doesn’t exist or may have moved.</p>
+      <p className="mt-3 text-sm leading-6 text-slate-600">The page you’re looking for doesn’t exist.</p>
       <a className="action-button mt-6 inline-flex" href="/">Return to home</a>
     </section>
   </main>
