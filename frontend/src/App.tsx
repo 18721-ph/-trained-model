@@ -10,7 +10,7 @@ import type { ApplicantRequest, PredictionResponse } from './types/prediction'
 import { changePassword, getCurrentUser, login, logout, type CurrentUser } from './services/authApi'
 import { LoginPage } from './pages/LoginPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
-import { NotFoundPage } from './pages/NotFoundPage'
+import { NotFoundPage } from './pages/404 page'
 export default function App() {
   const [user, setUser] = useState<CurrentUser | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
